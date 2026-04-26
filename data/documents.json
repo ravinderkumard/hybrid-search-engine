@@ -1,0 +1,27 @@
+[
+  {
+    "id": 1,
+    "title": "Introduction to Machine Learning",
+    "content": "Machine learning is a branch of artificial intelligence focused on predictive models."
+  },
+  {
+    "id": 2,
+    "title": "Deep Learning Fundamentals",
+    "content": "Deep learning uses neural networks with multiple hidden layers for pattern recognition."
+  },
+  {
+    "id": 3,
+    "title": "Python for Data Science",
+    "content": "Python is widely used in data science because of pandas, NumPy, and scikit-learn."
+  },
+  {
+    "id": 4,
+    "title": "Budget Laptop Buying Guide",
+    "content": "Affordable laptops for programming should include SSD storage and sufficient RAM."
+  },
+  {
+    "id": 5,
+    "title": "Cloud Deployment Basics",
+    "content": "Docker containers simplify deployment across development and production environments."
+  }
+]
