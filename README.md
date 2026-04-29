@@ -295,14 +295,3 @@ Ideal for roles in:
 
 ## Built a production-grade Hybrid Search Engine combining BM25, SentenceTransformers, FAISS, and Reciprocal Rank Fusion with FastAPI backend and modular React frontend, demonstrating end-to-end search architecture from retrieval theory to productized MVP.
 
----
-
-# Bottom Line
-
-This is not just a search demo.
-
-## It is:
-
-### A full-stack search architecture portfolio project
-
-built to showcase real-world retrieval engineering.
