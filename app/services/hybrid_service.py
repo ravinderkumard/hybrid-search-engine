@@ -1,4 +1,5 @@
 from app.core.config import settings
+from collections import defaultdict
 
 class HybridSearchService:
     def __init__(self, bm25_service, vector_service, embedding_service):
@@ -6,67 +7,77 @@ class HybridSearchService:
         self.vector_service = vector_service
         self.embedding_service = embedding_service
 
-    def reciprocal_rank_fusion(self, bm25_results, vector_results, k=60):
-        fused_scores = {}
+    def reciprocal_rank_fusion(self, bm25_results, dense_results, top_k, k=60):
+        fused_scores = defaultdict(
+            lambda: {
+                "doc_id": None,
+                "title": "",
+                "content": "",
+                "bm25_rank": None,
+                "bm25_score": None,
+                "dense_rank": None,
+                "dense_similarity": None,
+                "final_score": 0.0,
+            }
+        )
 
         # BM25 contribution
-        for item in bm25_results:
-            doc = item["doc"]
-            doc_id = doc["id"]
+        for result in bm25_results:
+            doc_id = result["doc_id"]
 
-            
-            if doc_id not in fused_scores:
-                fused_scores[doc_id] = {
-                    "doc": doc,
-                    "bm25_rank": None,
-                    "bm25_score": None,
-                    "dense_rank": None,
-                    "dense_similarity": None,
-                    "dense_distance": None,
-                    "bm25_rrf": 0,
-                    "dense_rrf": 0,
-                    "final_score": 0
-                }
+            fused_scores[doc_id][
+                "doc_id"
+            ] = doc_id
+            fused_scores[doc_id][
+                "title"
+            ] = result["title"]
+            fused_scores[doc_id][
+                "content"
+            ] = result["content"]
 
-            bm25_rrf = 1 / (k + item["bm25_rank"])
+            fused_scores[doc_id][
+                "bm25_rank"
+            ] = result["bm25_rank"]
 
-            fused_scores[doc_id]["bm25_rank"] = item["bm25_rank"]
-            fused_scores[doc_id]["bm25_score"] = item["bm25_score"]
-            fused_scores[doc_id]["bm25_rrf"] = bm25_rrf
-            
+            fused_scores[doc_id][
+                "bm25_score"
+            ] = result["bm25_score"]
+
+            fused_scores[doc_id][
+                "final_score"
+            ] += 1 / (
+                k + result["bm25_rank"]
+            )
 
 
         # Dense contribution
-        for item in vector_results:
-            doc = item["doc"]
-            doc_id = doc["id"]
+        for result in dense_results:
+            doc_id = result["doc_id"]
 
-            if doc_id not in fused_scores:
-                fused_scores[doc_id] = {
-                    "doc": doc,
-                    "bm25_rank": None,
-                    "bm25_score": None,
-                    "dense_rank": None,
-                    "dense_distance": None,
-                    "dense_similarity": None,
-                    "bm25_rrf": 0,
-                    "dense_rrf": 0,
-                    "final_score": 0
-                }
+            fused_scores[doc_id][
+                "doc_id"
+            ] = doc_id
+            fused_scores[doc_id][
+                "title"
+            ] = result["title"]
+            fused_scores[doc_id][
+                "content"
+            ] = result["content"]
 
-            dense_rrf = 1 / (k + item["dense_rank"])
+            fused_scores[doc_id][
+                "dense_rank"
+            ] = result["dense_rank"]
 
-            fused_scores[doc_id]["dense_rank"] = item["dense_rank"]
-            fused_scores[doc_id]["dense_distance"] = item["dense_distance"]
-            fused_scores[doc_id]["dense_similarity"] = item["dense_similarity"]
-            fused_scores[doc_id]["dense_rrf"] = dense_rrf
-            
+            fused_scores[doc_id][
+                "dense_similarity"
+            ] = result[
+                "dense_similarity"
+            ]
 
-        # Sort by final fused score
-        for doc_id in fused_scores:
-            fused_scores[doc_id]["final_score"] = (
-                fused_scores[doc_id]["bm25_rrf"] +
-                fused_scores[doc_id]["dense_rrf"]
+            fused_scores[doc_id][
+                "final_score"
+            ] += 1 / (
+                k + result["dense_rank"]
             )
 
         ranked_results = sorted(
@@ -75,7 +86,7 @@ class HybridSearchService:
             reverse=True
         )
 
-        return ranked_results
+        return ranked_results[:top_k]
 
     def search(self, query, top_k=5):
         if top_k is None:
@@ -128,7 +139,8 @@ class HybridSearchService:
 
         fused_results = self.reciprocal_rank_fusion(
             bm25_results,
-            vector_results
+            vector_results,
+            top_k=top_k,
         )
 
         return fused_results[:top_k]

@@ -15,3 +15,9 @@ flake8
 torch
 torchvision
 torchaudio
+
+# OpenSearch
+opensearch-py
+
+# Optional production utilities
+tenacity

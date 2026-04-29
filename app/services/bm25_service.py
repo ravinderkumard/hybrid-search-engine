@@ -1,36 +1,127 @@
-from rank_bm25 import BM25Okapi
+from typing import List, Dict, Any
+
 from app.core.config import settings
+from app.core.opensearch_client import OpenSearchClient
+
 
 class BM25Service:
-    def __init__(self, documents):
-        self.documents = documents
+    """
+    OpenSearch-backed BM25 sparse retrieval service.
 
-        # Combine title + content
-        self.corpus = [
-            (doc["title"] + " " + doc["content"]).lower().split()
-            for doc in documents
-        ]
+    Replaces:
+    - rank_bm25
 
-        self.bm25 = BM25Okapi(self.corpus)
+    Why:
+    - Scalable to 1M+ docs
+    - Distributed sparse retrieval
+    - BM25 precision preserved
+    """
 
-    def search(self, query, top_k=10):
-        tokenized_query = query.lower().split()
+    def __init__(self):
+        self.client = OpenSearchClient.get_client()
+        self.index_name = settings.OPENSEARCH_INDEX
 
-        scores = self.bm25.get_scores(tokenized_query)
+    # =========================================
+    # SEARCH
+    # =========================================
+    def search(
+        self,
+        query: str,
+        top_k: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Performs BM25 sparse retrieval using OpenSearch.
 
-        ranked_docs = sorted(
+        Returns:
             [
                 {
-                    "doc": doc,
-                    "bm25_score": score
+                    doc_id,
+                    title,
+                    content,
+                    bm25_score,
+                    bm25_rank
                 }
-                for doc, score in zip(self.documents, scores)
-                if score > settings.BM25_MIN_SCORE
-            ],
-            key=lambda x: x["bm25_score"],
-            reverse=True
+            ]
+        """
+
+        if not query or not query.strip():
+            return []
+
+        top_k = max(
+            1,
+            min(top_k, settings.MAX_TOP_K),
         )
-        
-        for rank, item in enumerate(ranked_docs):
-            item["bm25_rank"] = rank + 1
-        return ranked_docs[:top_k]
+
+        search_body = {
+            "size": top_k,
+            "query": {
+                "multi_match": {
+                    "query": query,
+                    "fields": [
+                        "title^2",
+                        "content",
+                    ],
+                    "type": "best_fields",
+                }
+            },
+        }
+
+        try:
+            response = self.client.search(
+                index=self.index_name,
+                body=search_body,
+                request_timeout=10,
+            )
+
+            hits = response.get(
+                "hits", {}
+            ).get("hits", [])
+
+            results = []
+
+            for rank, hit in enumerate(
+                hits, start=1
+            ):
+                source = hit.get(
+                    "_source", {}
+                )
+
+                results.append(
+                    {
+                        "doc_id": str(
+                            source.get("id")
+                        ),
+                        "title": source.get(
+                            "title", ""
+                        ),
+                        "content": source.get(
+                            "content", ""
+                        ),
+                        "bm25_score": float(
+                            hit.get(
+                                "_score", 0.0
+                            )
+                        ),
+                        "bm25_rank": rank,
+                    }
+                )
+
+            return results
+
+        except Exception as e:
+            print(
+                f"OpenSearch BM25 search error: {e}"
+            )
+            return []
+
+    # =========================================
+    # HEALTH
+    # =========================================
+    def health_check(self) -> bool:
+        """
+        Validates OpenSearch availability.
+        """
+        try:
+            return self.client.ping()
+        except Exception:
+            return False

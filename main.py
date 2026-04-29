@@ -1,26 +1,34 @@
-from fastapi import FastAPI
+
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
 
-from app.models.schemas import (SearchQuery, SearchResult, SearchResponse)
-from app.core.dependencies import get_search_engine
-from app.core.logger import logger
 from app.core.config import settings
-
-# Initialize app
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version="1.0.0",
-    description="""
-    Production-grade Hybrid Search Engine API
-
-    Features:
-    - BM25 lexical retrieval
-    - Dense semantic retrieval
-    - Reciprocal Rank Fusion (RRF)
-    - Explainable ranking
-    """
+from app.core.dependencies import (
+    get_search_engine,
 )
+from app.engine.search_engine import (
+    SearchEngine,
+)
+
+# =========================================
+# FASTAPI APP
+# =========================================
+app = FastAPI(
+    title=settings.APP_NAME,
+    version="2.0.0",
+    description=(
+        "Production-grade Hybrid Search Engine "
+        "(OpenSearch BM25 + Dense Retrieval + RRF)"
+    ),
+)
+
+# =========================================
+# REQUEST SCHEMA
+# =========================================
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = settings.DEFAULT_TOP_K
 
 # CORS (for Streamlit/frontend/mobile integrations)
 app.add_middleware(
@@ -31,67 +39,86 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# =========================================
+# ROOT
+# =========================================
 @app.get("/")
 def root():
     return {
-        "message": "Hybrid Search Engine API is running",
-        "docs": "/docs"
+        "app": settings.APP_NAME,
+        "environment": settings.APP_ENV,
+        "status": "running",
+        "architecture": (
+            "OpenSearch BM25 + Dense + RRF"
+        ),
     }
 
+
+# =========================================
+# HEALTH
+# =========================================
 @app.get("/health")
-def health_check():
+def health_check(
+    search_engine: SearchEngine = Depends(
+        get_search_engine
+    ),
+):
+    component_health = (
+        search_engine.health_check()
+    )
+
+    overall_status = (
+        "healthy"
+        if all(
+            component_health.values()
+        )
+        else "degraded"
+    )
+
     return {
-        "status": "healthy",
-        "project": settings.PROJECT_NAME,
-        "version": "1.0.0"
+        "status": overall_status,
+        "components": component_health,
     }
 
-@app.post("/search", response_model=SearchResponse)
+# =========================================
+# SEARCH
+# =========================================
+@app.post("/search")
 def search(
-    search_query: SearchQuery,
-    engine=Depends(get_search_engine)
+    request: SearchRequest,
+    search_engine: SearchEngine = Depends(
+        get_search_engine
+    ),
 ):
-    try:
-        logger.info(
-            f"Received search query: '{search_query.query}' | top_k={search_query.top_k}"
-        )
+    query = request.query.strip()
 
-        raw_results = engine.search(
-            query=search_query.query,
-            top_k=search_query.top_k
-        )
-
-        formatted_results = [
-            SearchResult(
-                id=result["doc"]["id"],
-                title=result["doc"]["title"],
-                content=result["doc"]["content"],
-
-                bm25_rank=result.get("bm25_rank"),
-                bm25_score=result.get("bm25_score"),
-
-                dense_rank=result.get("dense_rank"),
-                dense_distance=result.get("dense_distance"),
-                dense_similarity=result.get("dense_similarity"),
-
-                bm25_rrf=result.get("bm25_rrf", 0.0),
-                dense_rrf=result.get("dense_rrf", 0.0),
-
-                final_score=result["final_score"]
-            )
-            for result in raw_results
-        ]
-
-        return SearchResponse(
-            query=search_query.query,
-            total_results=len(formatted_results),
-            results=formatted_results
-        )
-
-    except Exception as e:
-        logger.error(f"Search endpoint failed: {str(e)}")
-
+    if not query:
         raise HTTPException(
-            status_code=500,
-            detail="Internal hybrid search error"
+            status_code=400,
+            detail="Query cannot be empty.",
         )
+
+    if request.top_k < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="top_k must be >= 1",
+        )
+
+    if (
+        request.top_k
+        > settings.MAX_TOP_K
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"top_k cannot exceed "
+                f"{settings.MAX_TOP_K}"
+            ),
+        )
+
+    results = search_engine.search(
+        query=query,
+        top_k=request.top_k,
+    )
+
+    return results
