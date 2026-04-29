@@ -251,22 +251,6 @@ This project demonstrates:
 
 ---
 
-# Recruiter Value
-
-Ideal for roles in:
-
-## AI Engineer
-
-## Search Engineer
-
-## Applied NLP Engineer
-
-## RAG Engineer
-
-## Full-stack AI Product Builder
-
----
-
 # Current Limitations
 
 * In-memory BM25

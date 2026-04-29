@@ -180,7 +180,7 @@ Unified orchestration
 
 ### Why:
 
-Scalability + maintainability + recruiter signal
+Scalability + maintainability
 
 ---
 
@@ -210,7 +210,7 @@ Production frontend maturity
 
 ### Why:
 
-Real users and recruiters need transparency
+Real users need transparency
 
 ---
 
@@ -414,16 +414,3 @@ Production-grade MVP with scale path
 
 ---
 
-# Bottom Line
-
-This project proves the ability to:
-
-## Identify a real search problem
-
-## Architect an effective hybrid solution
-
-## Build it end-to-end
-
-## Productize it
-
-## Prepare it for scale
