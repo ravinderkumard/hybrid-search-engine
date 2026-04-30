@@ -311,3 +311,90 @@ Built a production-grade Hybrid Search Engine combining BM25, SentenceTransforme
 |5	|BM25 replacement|	High|	Critical|
 |6	|Search engine integration|	High|	Critical|
 |7	|Testing|	Medium|	High|
+
+
+## Scaling Search Relevance
+### Issue: Curl Query
+```curl -X 'POST' \
+  'http://127.0.0.1:8000/search' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "query": "budget notebook",
+  "top_k": 2
+}'
+```
+
+```
+{
+  "query": "budget notebook",
+  "total_results": 2,
+  "results": [
+    {
+      "doc_id": "4",
+      "title": "Budget Laptop Buying Guide",
+      "content": "Affordable laptops for programming should include SSD storage and sufficient RAM.",
+      "bm25_rank": 1,
+      "bm25_score": 2.6520412,
+      "dense_rank": 1,
+      "dense_similarity": 0.5419859886169434,
+      "final_score": 0.03278688524590164
+    },
+    {
+      "doc_id": "3",
+      "title": "Python for Data Science",
+      "content": "Python is widely used in data science because of pandas, NumPy, and scikit-learn.",
+      "bm25_rank": null,
+      "bm25_score": null,
+      "dense_rank": 2,
+      "dense_similarity": 0.34979772567749023,
+      "final_score": 0.016129032258064516
+    }
+  ]
+}
+```
+- Problem: Irrelevant dense match (Python for Data Science) appears in top-k results for a product-like query due to semantic drift and lack of BM25 presence.
+- Hidden Issue: Dense retrieval returns something even when semantic confidence is weak.
+
+
+## Hybrid Search Relevance Issues - Problem Diagnosis Matrix
+| Problem Area                     | What You’re Seeing                                                                                 | Root Cause                                              | Why It Happens                                                                        | User / Business Impact                     | Recommended Fix                                                  | Priority    |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------- | ----------- |
+| Dense Semantic Drift             | Irrelevant semantically “close” docs appear (e.g. `Python for Data Science` for `budget notebook`) | Embedding model overgeneralizes semantic similarity     | MiniLM may associate “notebook” with coding/data science notebooks instead of laptops | Lower relevance quality, confusing results | Add dense similarity threshold (`MIN_DENSE_SIMILARITY`)          | Critical    |
+| Candidate Pollution              | Dense-only weak matches enter final results                                                        | RRF rewards rank position even without lexical support  | RRF assumes all candidates are valid enough for fusion                                | Noise in top-k                             | Filter low-confidence dense candidates before fusion             | Critical    |
+| BM25 Null Inclusion              | Docs with no BM25 support still rank                                                               | Fusion does not penalize absent sparse relevance enough | Dense results can bypass lexical precision                                            | Reduced precision                          | Add BM25 presence weighting / hybrid eligibility rules           | High        |
+| Vocabulary Ambiguity             | “Notebook” interpreted incorrectly                                                                 | Polysemy in embeddings                                  | Same term has multiple meanings                                                       | Wrong domain retrieval                     | Query expansion / synonym governance / domain weighting          | High        |
+| Sparse-Dense Weight Imbalance    | Dense may over-influence final ranking                                                             | Pure RRF rank fusion treats sparse/dense similarly      | Equal reciprocal weighting may not fit your corpus                                    | Unstable ranking                           | Weighted RRF (BM25 > Dense in certain domains)                   | High        |
+| Lack of Minimum Relevance Cutoff | Weak scores still surface                                                                          | No score floor                                          | System optimizes rank, not absolute quality                                           | Irrelevant tail results                    | Add minimum BM25 + dense thresholds                              | High        |
+| Query Intent Misclassification   | Product-like query behaves like general semantic search                                            | No query routing                                        | All queries treated equally                                                           | Lower search precision                     | Introduce query classifier (product / educational / technical)   | Medium      |
+| Small Candidate Pool Quality     | Low-quality dense candidates dominate when corpus is small                                         | Limited corpus diversity                                | Sparse + dense pool too narrow                                                        | Lower top-k trust                          | Increase retrieval depth + stricter rerank                       | Medium      |
+| No Cross-Encoder Precision Layer | Retrieval okay, final precision weaker                                                             | Missing reranking stage                                 | Candidate generation ≠ final precision                                                | Reduced production-grade quality           | Add cross-encoder reranker                                       | Medium-High |
+| Explainability Gap               | User sees score but not why irrelevant docs entered                                                | Limited diagnostics                                     | Fusion lacks confidence explanation                                                   | Hard debugging                             | Add retrieval source flags (`bm25_only`, `dense_only`, `hybrid`) | Medium      |
+
+
+## Fastest High-Impact Fixes
+| Fix                                    | Complexity |    Impact |
+| -------------------------------------- | ---------: | --------: |
+| Dense similarity threshold             |        Low |      High |
+| Weighted RRF                           | Low-Medium |      High |
+| BM25-required rule for certain queries |     Medium |      High |
+| Cross-encoder rerank                   |     Higher | Very High |
+
+
+### Because:
+- Dense embeddings optimize: Semantic proximity
+- NOT:Exact user intent
+
+### Result:
+
+Even low-quality dense matches still get: Dense rank
+
+→ then:RRF score
+
+→ then: Final inclusion
+
+### Core Problem:
+RRF assumes all candidate lists are trustworthy enough. But:Weak dense matches should NOT always be trusted.
+
+### New Rule:
+If dense_similarity < threshold: Ignore dense candidate

@@ -52,6 +52,8 @@ class HybridSearchService:
 
         # Dense contribution
         for result in dense_results:
+            if result["dense_similarity"] < settings.MIN_DENSE_SIMILARITY:
+                continue
             doc_id = result["doc_id"]
 
             fused_scores[doc_id][

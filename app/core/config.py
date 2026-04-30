@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     DEFAULT_TOP_K: int = 10
     MAX_TOP_K: int = 50
     RETRIEVAL_K: int = 50
+    MIN_DENSE_SIMILARITY: float = 0.45
 
     # =========================
     # Pydantic Settings
