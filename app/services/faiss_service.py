@@ -6,6 +6,7 @@ import faiss
 import numpy as np
 
 from app.core.config import settings
+import os
 
 
 class FAISSService:
@@ -19,6 +20,9 @@ class FAISSService:
     """
 
     def __init__(self):
+        # =====================================
+        # PATHS FIRST
+        # =====================================
         self.index_path = (
             settings.FAISS_INDEX_PATH
         )
@@ -27,10 +31,23 @@ class FAISSService:
             settings.DATA_PATH
         )
 
-        self.index = self._load_index()
+        self.docstore_path = (
+            "data/faiss_docstore.json"
+        )
+
+        # =====================================
+        # LOAD DATA
+        # =====================================
+        self.index = (
+            self._load_index()
+        )
 
         self.documents = (
             self._load_documents()
+        )
+
+        self.doc_id_map = (
+            self._load_docstore()
         )
 
     # =========================================
@@ -47,9 +64,24 @@ class FAISSService:
                 f"FAISS index not found: {self.index_path}"
             )
 
-        return faiss.read_index(
+        index = faiss.read_index(
             self.index_path
         )
+
+        if hasattr(index,"hnsw"):
+            index.hnsw.efSearch = (
+                settings.FAISS_EF_SEARCH
+            )
+            print(
+                f"HNSW index detected. "
+                f"efSearch set to "
+                f"{settings.FAISS_EF_SEARCH}"
+            )
+        else:
+            print(
+                "Flat FAISS index detected"
+            )
+        return index
 
     # =========================================
     # LOAD DOCS
@@ -118,10 +150,18 @@ class FAISSService:
                 f"Invalid query embedding shape: {query_vector.shape}"
             )
 
+        # =====================================
+        # OVER-FETCH FOR STALE FILTERING
+        # =====================================
+        search_k = max(
+            top_k * 3,
+            top_k,
+        )
+
         distances, indices = (
             self.index.search(
                 query_vector,
-                top_k,
+                search_k,
             )
         )
 
@@ -146,6 +186,28 @@ class FAISSService:
                 continue
 
             doc = self.documents[idx]
+
+            doc_id = str(
+                doc.get("id")
+            )
+
+            # =================================
+            # STALE VECTOR FILTER
+            # =================================
+            latest_vector_index = (
+                self.doc_id_map.get(
+                    doc_id
+                )
+            )
+
+            # Skip stale vectors
+            if (
+                latest_vector_index
+                is not None
+                and idx
+                != latest_vector_index
+            ):
+                continue
 
             # Convert L2 distance → similarity proxy
             similarity = (
@@ -194,3 +256,130 @@ class FAISSService:
             )
             > 0
         )
+    
+    # =========================================
+    # SAVE INDEX
+    # =========================================
+    def save_index(self):
+        """
+        Persists FAISS/HNSW index to disk.
+
+        Required for:
+        - Incremental ingestion
+        - Crash safety
+        - Scale durability
+        """
+        faiss.write_index(
+            self.index,
+            str(self.index_path),
+        )
+
+        return True
+    
+        # =========================================
+    # LOAD DOCSTORE
+    # =========================================
+    def _load_docstore(self):
+        """
+        Loads doc_id → latest vector_index mapping.
+
+        Purpose:
+        Prevents stale vector drift
+        during incremental updates.
+        """
+        if not Path(
+            self.docstore_path
+        ).exists():
+            return {}
+
+        with open(
+            self.docstore_path,
+            "r",
+            encoding="utf-8",
+        ) as f:
+            return json.load(f)
+        
+    
+    # =========================================
+    # SAVE DOCSTORE
+    # =========================================
+    def _save_docstore(self):
+        """
+        Persists doc_id → latest vector_index mapping.
+        """
+        with open(
+            self.docstore_path,
+            "w",
+            encoding="utf-8",
+        ) as f:
+            json.dump(
+                self.doc_id_map,
+                f,
+                indent=2,
+            )
+
+        return True
+    
+        # =========================================
+    # ADD / UPDATE DOCUMENT VECTOR
+    # =========================================
+    def add_or_update_document_vector(
+        self,
+        doc_id: str,
+        embedding,
+    ):
+        """
+        Adds latest vector for document and
+        updates logical mapping.
+
+        Note:
+        Old vectors remain physically,
+        but docstore ensures newest wins.
+        """
+
+        vector = np.array(
+            embedding
+        ).astype("float32")
+
+        # Shape safety
+        if len(vector.shape) == 1:
+            vector = np.expand_dims(
+                vector,
+                axis=0,
+            )
+
+        elif len(vector.shape) > 2:
+            raise ValueError(
+                f"Invalid embedding shape: "
+                f"{vector.shape}"
+            )
+
+        # =====================================
+        # ADD VECTOR
+        # =====================================
+        self.index.add(
+            vector
+        )
+
+        # =====================================
+        # LATEST VECTOR INDEX
+        # =====================================
+        latest_index = (
+            self.index.ntotal - 1
+        )
+
+        # =====================================
+        # UPDATE DOCSTORE
+        # =====================================
+        self.doc_id_map[
+            str(doc_id)
+        ] = latest_index
+
+        # =====================================
+        # PERSIST
+        # =====================================
+        self._save_docstore()
+
+        self.save_index()
+
+        return latest_index

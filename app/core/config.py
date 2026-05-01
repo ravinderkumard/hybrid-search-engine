@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     RETRIEVAL_K: int = 50
     MIN_DENSE_SIMILARITY: float = 0.45
 
+    FAISS_EF_SEARCH: int = 128
+
     # =========================
     # Pydantic Settings
     # =========================
@@ -65,6 +67,29 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    # =========================
+    # POSTGRESQL
+    # =========================
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5433
+    POSTGRES_DB: str = "hybrid_search"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+
+    @property
+    def POSTGRES_DATABASE_URL(self) -> str:
+        """
+        SQLAlchemy connection string
+        """
+        return (
+            f"postgresql://"
+            f"{self.POSTGRES_USER}:"
+            f"{self.POSTGRES_PASSWORD}@"
+            f"{self.POSTGRES_HOST}:"
+            f"{self.POSTGRES_PORT}/"
+            f"{self.POSTGRES_DB}"
+        )
 
 
 # Singleton settings object

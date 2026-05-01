@@ -9,6 +9,7 @@ from app.services.hybrid_service import (
     HybridSearchService,
 )
 
+from app.services.document_metadata_service import (    DocumentMetadataService,)
 
 class SearchEngine:
     """
@@ -35,6 +36,9 @@ class SearchEngine:
                 vector_service=self.faiss_service,
                 embedding_service=self.embedding_service
             )
+        )
+        self.metadata_service = (
+            DocumentMetadataService()
         )
 
     # =========================================
@@ -99,13 +103,34 @@ class SearchEngine:
             )
         )
 
+        # =====================================
+        # POSTGRESQL GOVERNANCE
+        # =====================================
+        enriched_results = (
+            self.metadata_service.enrich_results(
+                hybrid_results
+            )
+        )
+
         return {
             "query": query,
             "total_results": len(
-                hybrid_results
+                enriched_results
             ),
-            "results": hybrid_results,
+            "results": enriched_results,
         }
+    
+    # =========================================    
+    # # CLEANUP    
+    # # =========================================    
+    def close(self):        
+        """        
+        Gracefully closes metadata service.        
+        """        
+        try:        
+            self.metadata_service.close()        
+        except Exception:           
+            pass
 
     # =========================================
     # HEALTH
@@ -115,8 +140,19 @@ class SearchEngine:
         Validates all major search components.
         """
 
+        metadata_healthy = True
+
+        try:
+            self.metadata_service.get_documents_by_ids(
+                []
+            )
+        except Exception:
+            metadata_healthy = False
+
         return {
-            "bm25_opensearch": self.bm25_service.health_check(),
+            "bm25_opensearch": (
+                self.bm25_service.health_check()
+            ),
             "embedding_model": (
                 self.embedding_service
                 is not None
@@ -124,5 +160,8 @@ class SearchEngine:
             "faiss": (
                 self.faiss_service
                 is not None
+            ),
+            "postgres_metadata": (
+                metadata_healthy
             ),
         }

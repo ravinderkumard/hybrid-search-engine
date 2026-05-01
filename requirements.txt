@@ -21,3 +21,9 @@ opensearch-py
 
 # Optional production utilities
 tenacity
+
+# Metadata Save
+sqlalchemy
+psycopg2-binary
+
+gunicorn

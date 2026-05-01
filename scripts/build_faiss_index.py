@@ -1,8 +1,20 @@
 import json
+import sys
 from pathlib import Path
 
 import faiss
 import numpy as np
+
+# =========================================
+# PROJECT ROOT FIX
+# =========================================
+sys.path.append(
+    str(
+        Path(__file__)
+        .resolve()
+        .parent.parent
+    )
+)
 
 from app.core.config import settings
 from app.services.embedding_service import (
@@ -10,11 +22,16 @@ from app.services.embedding_service import (
 )
 
 
+# =========================================
+# LOAD DOCUMENTS
+# =========================================
 def load_documents():
     """
-    Loads dataset from configured path.
+    Loads source corpus from documents.json
     """
-    path = Path(settings.DATA_PATH)
+    path = Path(
+        settings.DATA_PATH
+    )
 
     if not path.exists():
         raise FileNotFoundError(
@@ -29,19 +46,22 @@ def load_documents():
         return json.load(f)
 
 
+# =========================================
+# MAIN
+# =========================================
 def main():
     print(
         "\n========================================="
     )
     print(
-        "Building FAISS Dense Index"
+        "Building FAISS HNSW Index"
     )
     print(
         "=========================================\n"
     )
 
     # =====================================
-    # LOAD DATA
+    # LOAD DOCS
     # =====================================
     documents = load_documents()
 
@@ -62,21 +82,38 @@ def main():
         EmbeddingService()
     )
 
-    # =====================================
-    # BUILD EMBEDDINGS
-    # =====================================
     corpus = []
 
-    for doc in documents:
+    # =====================================
+    # DOCSTORE MAP
+    # =====================================
+    docstore = {}
+
+    # =====================================
+    # BUILD TEXT CORPUS
+    # =====================================
+    for idx, doc in enumerate(
+        documents
+    ):
         combined_text = (
             f"{doc.get('title', '')} "
             f"{doc.get('content', '')}"
-        )
+        ).strip()
 
         corpus.append(
-            combined_text.strip()
+            combined_text
         )
 
+        # =============================
+        # DOC ID → VECTOR INDEX
+        # =============================
+        docstore[
+            str(doc["id"])
+        ] = idx
+
+    # =====================================
+    # GENERATE EMBEDDINGS
+    # =====================================
     print(
         "Generating embeddings..."
     )
@@ -93,48 +130,128 @@ def main():
         embeddings
     ).astype("float32")
 
-    # =====================================
-    # BUILD INDEX
-    # =====================================
-    dimension = embeddings.shape[1]
+    dimension = (
+        embeddings.shape[1]
+    )
 
     print(
-        f"Embedding dimension: {dimension}"
+        f"Embedding shape: {embeddings.shape}"
     )
 
-    index = faiss.IndexFlatL2(
-        dimension
+    # =====================================
+    # HNSW INDEX
+    # =====================================
+    print(
+        "\nBuilding HNSW index..."
     )
 
-    index.add(embeddings)
+    index = faiss.IndexHNSWFlat(
+        dimension,
+        32,  # M
+    )
+
+    # Graph build quality
+    index.hnsw.efConstruction = 200
+
+    # Query quality
+    index.hnsw.efSearch = (
+        settings.FAISS_EF_SEARCH
+    )
+
+    # =====================================
+    # ADD EMBEDDINGS
+    # =====================================
+    index.add(
+        embeddings
+    )
 
     print(
         f"Indexed {index.ntotal} vectors."
     )
 
     # =====================================
-    # SAVE INDEX
+    # OUTPUT PATHS
     # =====================================
-    output_path = Path(
+    index_output_path = Path(
         settings.FAISS_INDEX_PATH
     )
 
-    output_path.parent.mkdir(
+    docstore_output_path = Path(
+        "data/faiss_docstore.json"
+    )
+
+    index_output_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
+    # =====================================
+    # SAVE INDEX
+    # =====================================
     faiss.write_index(
         index,
-        str(output_path),
+        str(index_output_path),
+    )
+
+    # =====================================
+    # SAVE DOCSTORE
+    # =====================================
+    with open(
+        docstore_output_path,
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(
+            docstore,
+            f,
+            indent=2,
+        )
+
+    print(
+        f"\nFAISS HNSW index saved to: "
+        f"{index_output_path}"
     )
 
     print(
-        f"\nFAISS index saved to: {output_path}"
+        f"FAISS docstore saved to: "
+        f"{docstore_output_path}"
+    )
+
+    # =====================================
+    # FINAL SUMMARY
+    # =====================================
+    print(
+        "\n========================================="
+    )
+    print(
+        "BUILD COMPLETE"
+    )
+    print(
+        "========================================="
     )
 
     print(
-        "\nFAISS build complete."
+        f"Documents indexed: {len(documents)}"
+    )
+
+    print(
+        f"Vector dimension: {dimension}"
+    )
+
+    print(
+        "Index type: HNSW"
+    )
+
+    print(
+        "M: 32"
+    )
+
+    print(
+        "efConstruction: 200"
+    )
+
+    print(
+        f"efSearch: {settings.FAISS_EF_SEARCH}"
     )
 
 

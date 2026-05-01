@@ -414,3 +414,87 @@ Production-grade MVP with scale path
 
 ---
 
+## 1M+ Document Scale
+
+### Challenges:
+
+1. **Sparse Retrieval**:
+   - BM25 becomes slower and more memory-intensive.
+   - Solution: Use OpenSearch for distributed inverted indexing.
+
+2. **Dense Retrieval**:
+   - FAISS IndexFlatL2 struggles with large datasets.
+   - Solution: Implement HNSW or IVF for approximate nearest neighbor search.
+
+3. **Embedding Generation**:
+   - Full corpus re-embedding is impractical.
+   - Solution: Use an incremental batch pipeline (e.g., Celery, Kafka).
+
+4. **Document Storage**:
+   - Flat files/in-memory docs are unmanageable.
+   - Solution: Migrate to PostgreSQL or a document store.
+
+5. **Query Latency**:
+   - Hybrid retrieval pipeline slows down.
+   - Solution: Optimize candidate pools and implement caching.
+
+6. **Ranking Quality**:
+   - More documents lead to false positives.
+   - Solution: Introduce cross-encoder reranking.
+
+
+#### ANN + HNSW for Dense Retrieval
+As our Hybrid Search Engine grows from a prototype into a large-scale retrieval platform, dense vector search becomes a major bottleneck. Our original FAISS IndexFlatL2 performs exact nearest-neighbor search, which means every query compares against every document embedding.
+
+**Problem with Exact Dense Search**
+
+At small scale, this works well.
+At 1M+ documents, it becomes computationally expensive because:
+
+Challenges:
+- Query latency increases significantly
+- Memory usage grows linearly
+- Poor concurrency under real traffic
+- Dense retrieval becomes the primary scaling bottleneck
+
+**Solution: Approximate Nearest Neighbor (ANN) Search**
+To scale dense retrieval efficiently, we introduce:
+
+ANN — Approximate Nearest Neighbor Search
+- ANN avoids brute-force comparison by intelligently narrowing search space to highly probable candidates.
+
+Why ANN?
+- Instead of checking every vector:
+
+ANN searches efficiently through structured approximations
+
+**Key Parameters**
+M - Defines how many neighbors each node (document vector) connects to.
+
+Higher M:
+- Better recall
+- Better graph quality
+- More memory
+
+Recommended:
+- M = 32
+
+
+efConstruction - Controls how carefully the graph is built during indexing.
+
+Higher efConstruction:
+- Better graph structure
+- Better future retrieval quality
+- Slower indexing
+
+Recommended:
+- efConstruction = 200
+
+efSearch - Controls how deeply the graph is explored during query time.
+
+Higher efSearch:
+- Better retrieval accuracy
+- Slower search
+
+Recommended:
+- efSearch = 128
