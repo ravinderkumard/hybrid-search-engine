@@ -110,15 +110,30 @@ class HybridSearchService:
         if not bm25_results:
             return [
                 {
-                    "doc": item["doc"],
+                    "doc_id": item.get(
+                        "doc_id"
+                    ),
+                    "title": item.get(
+                        "title"
+                    ),
+                    "content": item.get(
+                        "content"
+                    ),
                     "bm25_rank": None,
                     "bm25_score": None,
-                    "dense_rank": item["dense_rank"],
-                    "dense_similarity": item["dense_similarity"],
-                    "dense_distance": item["dense_distance"],
-                    "bm25_rrf": 0.0,
-                    "dense_rrf": 1/(retrieval_k + item["dense_rank"]),
-                    "final_score": 1/(retrieval_k + item["dense_rank"])
+                    "dense_rank": item.get(
+                        "dense_rank"
+                    ),
+                    "dense_similarity": item.get(
+                        "dense_similarity"
+                    ),
+                    "dense_distance": item.get(
+                        "dense_distance"
+                    ),
+                    "final_score": 1 / (
+                        retrieval_k
+                        + item["dense_rank"]
+                    ),
                 }
                 for item in vector_results[:top_k]
             ]
@@ -126,17 +141,32 @@ class HybridSearchService:
         if not vector_results:
             return [
                 {
-                    "doc": item["doc"],
-                    "bm25_rank": item["bm25_rank"],
-                    "bm25_score": item["bm25_score"],
+                    "doc_id": item.get(
+                        "doc_id"
+                    ),
+                    "title": item.get(
+                        "title"
+                    ),
+                    "content": item.get(
+                        "content"
+                    ),
+                    "bm25_rank": item.get(
+                        "bm25_rank"
+                    ),
+                    "bm25_score": item.get(
+                        "bm25_score"
+                    ),
                     "dense_rank": None,
                     "dense_similarity": None,
                     "dense_distance": None,
-                    "bm25_rrf": 1/(retrieval_k + item["bm25_rank"]),
-                    "dense_rrf": 0.0,
-                    "final_score": 1/(retrieval_k + item["bm25_rank"])
+                    "final_score": 1 / (
+                        retrieval_k
+                        + item["bm25_rank"]
+                    ),
                 }
-                for item in bm25_results[:top_k]
+                for item in bm25_results[
+                    :top_k
+                ]
             ]
 
         fused_results = self.reciprocal_rank_fusion(

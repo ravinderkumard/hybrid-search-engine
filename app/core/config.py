@@ -71,8 +71,8 @@ class Settings(BaseSettings):
     # =========================
     # POSTGRESQL
     # =========================
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5433
+    POSTGRES_HOST: str = "postgres"
+    POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "hybrid_search"
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
