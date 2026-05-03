@@ -27,3 +27,7 @@ sqlalchemy
 psycopg2-binary
 
 gunicorn
+
+prometheus-fastapi-instrumentator
+prometheus_client
+python-json-logger

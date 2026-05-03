@@ -10,7 +10,7 @@ from app.services.hybrid_service import (
 )
 
 from app.services.document_metadata_service import (    DocumentMetadataService,)
-
+from app.services.metrics import (bm25_latency,embedding_latency,faiss_latency,rrf_latency,metadata_latency,total_search_latency)
 class SearchEngine:
     """
     Unified hybrid retrieval engine.
@@ -67,58 +67,64 @@ class SearchEngine:
                 "results": [],
             }
 
-        # =====================================
-        # SPARSE SEARCH (OpenSearch BM25)
-        # =====================================
-        bm25_results = (
-            self.bm25_service.search(
-                query=query,
-                top_k=top_k * 2,
-            )
-        )
+        with total_search_latency.time():
+            # =====================================
+            # SPARSE SEARCH (OpenSearch BM25)
+            # =====================================
+            with bm25_latency.time():
+                bm25_results = (
+                    self.bm25_service.search(
+                        query=query,
+                        top_k=top_k * 2,
+                    )
+                )
 
-        # =====================================
-        # DENSE SEARCH (FAISS)
-        # =====================================
-        query_embedding = (
-            self.embedding_service.encode_query(
-                query
-            )
-        )
+            # =====================================
+            # DENSE SEARCH (FAISS)
+            # =====================================
+            with embedding_latency.time():
+                query_embedding = (
+                    self.embedding_service.encode_query(
+                        query
+                    )
+                )
 
-        dense_results = (
-            self.faiss_service.search(
-                query_embedding=query_embedding,
-                top_k=top_k * 2,
-            )
-        )
+            with faiss_latency.time():
+                dense_results = (
+                    self.faiss_service.search(
+                        query_embedding=query_embedding,
+                        top_k=top_k * 2,
+                    )
+                )
 
-        # =====================================
-        # HYBRID FUSION (RRF)
-        # =====================================
-        hybrid_results = (
-            self.hybrid_service.search(
-                query=query,
-                top_k=top_k,
-            )
-        )
+            # =====================================
+            # HYBRID FUSION (RRF)
+            # =====================================
+            with rrf_latency.time():
+                hybrid_results = (
+                    self.hybrid_service.search(
+                        query=query,
+                        top_k=top_k,
+                    )
+                )
 
-        # =====================================
-        # POSTGRESQL GOVERNANCE
-        # =====================================
-        enriched_results = (
-            self.metadata_service.enrich_results(
-                hybrid_results
-            )
-        )
+            # =====================================
+            # POSTGRESQL GOVERNANCE
+            # =====================================
+            with metadata_latency.time():
+                enriched_results = (
+                    self.metadata_service.enrich_results(
+                        hybrid_results
+                    )
+                )
 
-        return {
-            "query": query,
-            "total_results": len(
-                enriched_results
-            ),
-            "results": enriched_results,
-        }
+            return {
+                "query": query,
+                "total_results": len(
+                    enriched_results
+                ),
+                "results": enriched_results,
+            }
     
     # =========================================    
     # # CLEANUP    

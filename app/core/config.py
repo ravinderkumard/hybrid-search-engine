@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # =========================
     # OPENSEARCH
     # =========================
-    OPENSEARCH_HOST: str = "localhost"
+    OPENSEARCH_HOST: str = "opensearch"
     OPENSEARCH_PORT: int = 9200
     OPENSEARCH_USERNAME: str = "admin"
     OPENSEARCH_PASSWORD: str = "admin"

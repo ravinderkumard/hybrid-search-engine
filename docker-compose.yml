@@ -1,6 +1,39 @@
 version: "3.8"
 
 services:
+  postgres:
+    image: postgres:15
+    container_name: hybrid-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: hybrid_search
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - hybrid-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - hybrid-net
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - hybrid-net
   # =====================================
   # LOAD BALANCER
   # =====================================
@@ -15,62 +48,19 @@ services:
       - app1
       - app2
       - app3
+    networks:
+      - hybrid-net
 
-  # =====================================
-  # FASTAPI APP INSTANCES
-  # =====================================
-  app1:
+  db_init:
     build: .
-    container_name: hybrid-app1
-    expose:
-      - "8000"
+    container_name: db_init
     depends_on:
-      - opensearch
-      - postgres
-    volumes:
-      - ./data:/app/data
-    restart: always
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      
-
-  app2:
-    build: .
-    container_name: hybrid-app2
-    expose:
-      - "8000"
-    depends_on:
-      - opensearch
-      - postgres
-    volumes:
-      - ./data:/app/data
-    restart: always
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  app3:
-    build: .
-    container_name: hybrid-app3
-    expose:
-      - "8000"
-    depends_on:
-      - opensearch
-      - postgres
-    volumes:
-      - ./data:/app/data
-    restart: always
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
+      postgres:
+        condition: service_healthy
+    command: ["python", "init_db.py"]
+    networks:
+      - hybrid-net
+    restart: "no"
   opensearch:
     image: opensearchproject/opensearch:2.11.1
     container_name: opensearch
@@ -88,27 +78,163 @@ services:
       - "9600:9600"
     volumes:
       - opensearch-data:/usr/share/opensearch/data
-  postgres:
-    image: postgres:15
-    container_name: hybrid-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: hybrid_search
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5433:5432"
+    networks:
+      - hybrid-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+  
+  search_init:
+    build: .
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    command: ["python", "init_opensearch.py"]
+    networks:
+      - hybrid-net
+    restart: "no"
+
+
+  # =====================================
+  # Document Ingestion Service
+  # =====================================
+  document_ingest:
+    build: .
+    container_name: document_ingest
+    depends_on:
+      db_init:
+        condition: service_completed_successfully
+      search_init:
+        condition: service_completed_successfully
+    command: ["python", "ingest_documents.py"]
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ./data:/app/data
+    networks:
+      - hybrid-net
+    restart: "no"
+
+  # =====================================
+  # FASTAPI APP INSTANCES
+  # =====================================
+  app1:
+    build: .
+    container_name: hybrid-app1
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
+      db_init:
+        condition: service_completed_successfully
+      search_init:
+        condition: service_completed_successfully
+      document_ingest:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    environment:
+      OPENSEARCH_HOSTS: opensearch
+      OPENSEARCH_PORT: 9200
+      POSTGRES_HOST: postgres
+    networks:
+      - hybrid-net
+
+      
+
+  app2:
+    build: .
+    container_name: hybrid-app2
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
+      db_init:
+        condition: service_completed_successfully
+      search_init:
+        condition: service_completed_successfully
+      document_ingest:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    environment:
+      OPENSEARCH_HOSTS: opensearch
+      OPENSEARCH_PORT: 9200
+      POSTGRES_HOST: postgres
+    networks:
+      - hybrid-net
+
+  app3:
+    build: .
+    container_name: hybrid-app3
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
+      db_init:
+        condition: service_completed_successfully
+      search_init:
+        condition: service_completed_successfully
+      document_ingest:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    environment:
+      OPENSEARCH_HOSTS: opensearch
+      OPENSEARCH_PORT: 9200
+      POSTGRES_HOST: postgres
+    networks:
+      - hybrid-net
+
+  
 
   dashboards:
     image: opensearchproject/opensearch-dashboards:2.11.1
-    container_name: opensearch-dashboards
+    depends_on:
+      opensearch:
+        condition: service_healthy
     ports:
       - "5601:5601"
     environment:
-      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      OPENSEARCH_HOST: '["http://opensearch:9200"]'
+    networks:
+      - hybrid-net
 
 volumes:
   opensearch-data:
   postgres-data:
+
+networks:
+  hybrid-net:
+    driver: bridge

@@ -46,6 +46,11 @@ class FAISSService:
             self._load_documents()
         )
 
+        self.document_lookup = {
+            str(doc["id"]): doc
+            for doc in self.documents
+        }
+
         self.doc_id_map = (
             self._load_docstore()
         )
@@ -177,15 +182,27 @@ class FAISSService:
             ),
             start=1,
         ):
-            if (
-                idx < 0
-                or idx >= len(
-                    self.documents
-                )
-            ):
+            if idx < 0:
                 continue
 
-            doc = self.documents[idx]
+            doc_id = self.doc_id_map["vector_to_doc_id"].get(str(idx))
+
+            if not doc_id:
+                continue
+
+            # doc = next(
+            #     (
+            #         d for d in self.documents
+            #         if str(d.get("id")) == str(doc_id)
+            #     ),
+            #     None
+            # )
+            doc = self.document_lookup.get(
+                str(doc_id)
+            )
+
+            if not doc:
+                continue
 
             doc_id = str(
                 doc.get("id")
@@ -195,9 +212,9 @@ class FAISSService:
             # STALE VECTOR FILTER
             # =================================
             latest_vector_index = (
-                self.doc_id_map.get(
-                    doc_id
-                )
+                self.doc_id_map[
+                    "doc_id_to_vector"
+                ].get(str(doc_id))
             )
 
             # Skip stale vectors
@@ -290,15 +307,28 @@ class FAISSService:
         if not Path(
             self.docstore_path
         ).exists():
-            return {}
+            return {
+                "doc_id_to_vector": {},
+                "vector_to_doc_id": {}
+            }
 
         with open(
             self.docstore_path,
             "r",
             encoding="utf-8",
         ) as f:
-            return json.load(f)
-        
+            data = json.load(f)
+
+            if "doc_id_to_vector" not in data:
+                return {
+                    "doc_id_to_vector": data,
+                    "vector_to_doc_id": {
+                        str(v): str(k)
+                        for k, v in data.items()
+                    }
+                }
+
+            return data
     
     # =========================================
     # SAVE DOCSTORE
@@ -371,9 +401,8 @@ class FAISSService:
         # =====================================
         # UPDATE DOCSTORE
         # =====================================
-        self.doc_id_map[
-            str(doc_id)
-        ] = latest_index
+        self.doc_id_map["doc_id_to_vector"][str(doc_id)] = latest_index
+        self.doc_id_map["vector_to_doc_id"][str(latest_index)] = str(doc_id)
 
         # =====================================
         # PERSIST
