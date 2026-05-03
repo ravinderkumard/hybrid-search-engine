@@ -6,7 +6,7 @@ from app.core.config import settings
 
 class OpenSearchClient:
     """
-    Singleton OpenSearch client for production-grade sparse retrieval.
+    Singleton OpenSearch client for sparse retrieval.
 
     Why:
     - Centralized connection management

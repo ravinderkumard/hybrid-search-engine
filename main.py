@@ -34,7 +34,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version="2.0.0",
     description=(
-        "Production-grade Hybrid Search Engine "
+        "Hybrid Search Engine "
         "(OpenSearch BM25 + Dense Retrieval + RRF)"
     ),
 )

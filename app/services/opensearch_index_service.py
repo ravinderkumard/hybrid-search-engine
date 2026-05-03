@@ -13,7 +13,7 @@ class OpenSearchIndexService:
     Why:
     - Schema consistency
     - Bulk ingestion
-    - Production-grade scalability
+    - scalability
     - Index governance
     """
 

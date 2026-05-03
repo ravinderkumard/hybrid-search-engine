@@ -1,6 +1,6 @@
 # Hybrid Search Engine
 
-## Production-Grade BM25 + Dense Retrieval + RRF Full-Stack Search Platform
+## Hybrid Search BM25 + Dense Retrieval + RRF Full-Stack Search Platform
 
 ---
 
@@ -277,7 +277,7 @@ This project demonstrates:
 
 # Resume Bullet
 
-Built a production-grade Hybrid Search Engine combining BM25, SentenceTransformers, FAISS, and Reciprocal Rank Fusion with FastAPI backend and modular React frontend, demonstrating end-to-end search architecture from retrieval theory to productized MVP.
+Built a Hybrid Search Engine combining BM25, SentenceTransformers, FAISS, and Reciprocal Rank Fusion with FastAPI backend and modular React frontend, demonstrating end-to-end search architecture from retrieval theory to productized MVP.
 
 # Scaling Hybrid Search to 1M+ Documents — Problems vs Solutions Matrix
 | Problem Area            |                          What Breaks at 1M+ Docs | Why It Happens                                                    | Business / User Impact                         | Required Solution                                     | Why This Fix Works                                              |
@@ -398,3 +398,35 @@ RRF assumes all candidate lists are trustworthy enough. But:Weak dense matches s
 
 ### New Rule:
 If dense_similarity < threshold: Ignore dense candidate
+
+
+## Metrics
+
+| Metric Area                  |           Current Observed Value |          Approx Avg / Interpretation | What It Means                                                               | Priority         |
+| ---------------------------- | -------------------------------: | -----------------------------------: | --------------------------------------------------------------------------- | ---------------- |
+| Search Requests              |                          2 total |               100% success, 0 errors | Core `/search` endpoint is functioning correctly                            | Low              |
+| Search Success Rate          |                              2/2 |                                 100% | No runtime or validation failures in tested traffic                         | Low              |
+| BM25 Latency                 |                  0.5589s / 6 ops |                            ~93ms avg | OpenSearch lexical retrieval is healthy and acceptable                      | Medium           |
+| Embedding Latency            |                  0.3718s / 6 ops |                            ~62ms avg | MiniLM embedding generation is efficient for CPU                            | Medium           |
+| FAISS Latency                |                  0.0126s / 2 ops |                             ~6ms avg | Dense vector retrieval is extremely fast; infra is solid                    | Low              |
+| RRF Fusion Latency           |                  0.1603s / 2 ops |                            ~80ms avg | Fusion is slower than expected; likely Python logic inefficiency            | High             |
+| Metadata Enrichment Latency  |                  0.4296s / 2 ops |                           ~215ms avg | Largest bottleneck; PostgreSQL governance layer is dominating response time | Critical         |
+| Total Search Latency         |                    1.98s / 4 ops |                           ~495ms avg | Good prototype performance, but optimization needed for production          | High             |
+| HTTP `/search` Duration      |                    9.23s / 2 ops |                            ~4.6s avg | Likely cold start / initialization skewing early numbers                    | Medium           |
+| Query Length                 |                           62 / 2 |                        ~31 chars avg | Realistic query size; no anomaly                                            | Low              |
+| Top-K Requested              |                           20 / 2 |                               10 avg | Search pipeline consistently returning requested retrieval depth            | Low              |
+| Results Returned             |                           10 / 2 |                                5 avg | Retrieval + ranking path is operational                                     | Low              |
+| Dense Retrieval Contribution | Present (`dense_rank` populated) |                     Hybrid confirmed | Semantic retrieval is now materially contributing                           | Critical Success |
+| BM25 vs Dense Balance        |         BM25 + Dense both active |                     Hybrid validated | System moved from BM25-only to genuine hybrid retrieval                     | Critical Success |
+| Prometheus Scrape            |                          Working |                      Metrics visible | Observability stack operational                                             | Low              |
+| Multi-Replica Monitoring     |      Functional after scrape fix | Distributed observability now viable | Platform maturity improved significantly                                    | Medium           |
+
+
+## Bottlenecks:(3rd May)
+| Rank | Component           | Why                                         |
+| ---- | ------------------- | ------------------------------------------- |
+| 1    | PostgreSQL Metadata | Largest measurable latency source           |
+| 2    | RRF Fusion          | Too expensive for expected algorithmic cost |
+| 3    | BM25                | Acceptable, but still meaningful            |
+| 4    | Embedding           | Good                                        |
+| 5    | FAISS               | Excellent                                   |

@@ -385,7 +385,7 @@ Designed sparse + dense + fusion full-stack system
 
 ## Result:
 
-Production-grade MVP with scale path
+Hybrid Search MVP with scale path
 
 ---
 
