@@ -2,10 +2,17 @@ from app.core.config import settings
 from collections import defaultdict
 from app.services.metrics import rrf_latency,total_search_latency
 class HybridSearchService:
-    def __init__(self, bm25_service, vector_service, embedding_service):
+    def __init__(self, bm25_service, vector_service, embedding_service, reranker=None):
         self.bm25_service = bm25_service
         self.vector_service = vector_service
         self.embedding_service = embedding_service
+        self.reranker = reranker
+
+    def _prepare_documents_for_rerank(self,docs):
+        return [
+            f"{doc['title']} {doc['content']}"[:2000]
+            for doc in docs
+        ]
 
     def reciprocal_rank_fusion(self, bm25_results, dense_results, top_k, k=60):
         fused_scores = defaultdict(
@@ -52,8 +59,8 @@ class HybridSearchService:
 
         # Dense contribution
         for result in dense_results:
-            # if result["dense_similarity"] < settings.MIN_DENSE_SIMILARITY:
-            #     continue
+            if result["dense_similarity"] < settings.MIN_DENSE_SIMILARITY:
+                continue
             doc_id = result["doc_id"]
 
             fused_scores[doc_id][
@@ -81,8 +88,7 @@ class HybridSearchService:
             ] += 1 / (
                 k + result["dense_rank"]
             )
-        print("RAW DENSE RESULTS:", dense_results)
-        print("MIN_DENSE_SIMILARITY:", settings.MIN_DENSE_SIMILARITY)
+        
         ranked_results = sorted(
             fused_scores.values(),
             key=lambda x: x["final_score"],
@@ -100,13 +106,12 @@ class HybridSearchService:
             bm25_results = self.bm25_service.search(query, top_k=retrieval_k)
 
             query_embedding = self.embedding_service.encode_query(query)
-            print("QUERY:", query)
+            
             vector_results = self.vector_service.search(
                 query_embedding,
                 top_k=retrieval_k
             )
-            print("VECTOR RESULTS:", vector_results)
-            print("VECTOR RESULT COUNT:", len(vector_results))
+            
             if not bm25_results and not vector_results:
                 return []
             
@@ -178,4 +183,13 @@ class HybridSearchService:
                     top_k=top_k,
                 )
 
+            fused_results = fused_results[:settings.RETRIEVAL_K]
+
+            if self.reranker:
+                try:
+                    docs_text = self._prepare_documents_for_rerank(fused_results)
+                    reranked = self.reranker.rerank(query,fused_results,top_k)
+                    return reranked[:top_k]
+                except Exception as e:
+                    return fused_results[:top_k]
             return fused_results[:top_k]

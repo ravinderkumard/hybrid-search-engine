@@ -127,12 +127,15 @@ class OpenSearchIndexService:
                 }
             )
 
-        success, _ = bulk(
+        success, failed = bulk(
             self.client,
             actions,
-            refresh=True,
+            refresh=False,
+            chunk_size=500,
+            request_timeout=120,
+            raise_on_error=False
         )
-
+        
         return success
 
     # =========================================

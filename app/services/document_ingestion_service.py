@@ -18,7 +18,8 @@ from app.services.embedding_service import (
 from app.services.faiss_service import (
     FAISSService,
 )
-
+import logging
+import time
 
 class DocumentIngestionService:
     """
@@ -49,6 +50,7 @@ class DocumentIngestionService:
         self.faiss_service = (
             FAISSService()
         )
+        self.logger = logging.getLogger(__name__)
 
     # =====================================
     # VALIDATION
@@ -161,120 +163,171 @@ class DocumentIngestionService:
     # =====================================
     # FAISS VECTOR ADD
     # =====================================
-    def add_to_faiss(
-        self,
-        document,
-    ):
-        """
-        Adds or updates document vector
-        with docstore governance.
-        """
-        combined_text = (
-            f"{document['title']} "
-            f"{document['content']}"
-        )
+    # def add_to_faiss(
+    #     self,
+    #     document,
+    # ):
+    #     """
+    #     Adds or updates document vector
+    #     with docstore governance.
+    #     """
+    #     combined_text = (
+    #         f"{document['title']} "
+    #         f"{document['content']}"
+    #     )
 
-        embedding = (
-            self.embedding_service.model.encode(
-                [combined_text],
-                convert_to_numpy=True,
-            )
-        )
+    #     embedding = (
+    #         self.embedding_service.model.encode(
+    #             [combined_text],
+    #             convert_to_numpy=True,
+    #         )
+    #     )
 
-        latest_index = (
-            self.faiss_service.add_or_update_document_vector(
-                doc_id=str(
-                    document["id"]
-                ),
-                embedding=embedding,
-            )
-        )
+    #     latest_index = (
+    #         self.faiss_service.add_or_update_document_vector(
+    #             doc_id=str(
+    #                 document["id"]
+    #             ),
+    #             embedding=embedding,
+    #         )
+    #     )
 
-        return (
-            latest_index
-            is not None
-        )
+    #     return (
+    #         latest_index
+    #         is not None
+    #     )
 
     # =====================================
     # INGEST
     # =====================================
-    def ingest_document(
+
+    
+
+
+    def ingest_batch(
         self,
-        document: Dict[str, Any],
+        documents,
+        save_faiss=False,
     ):
-        if not self.validate_document(
-            document
-        ):
-            return {
-                "success": False,
-                "error": (
-                    "Invalid document schema"
-                ),
-            }
+        """
+        High-throughput batch ingestion.
+        """
+
+        start_time = time.time()
+
+        # =====================================
+        # VALIDATION
+        # =====================================
+
+        valid_docs = []
+
+        for doc in documents:
+            if self.validate_document(doc):
+                valid_docs.append(doc)
+
+        if not valid_docs:
+            self.logger.warning(
+                "No valid docs in batch"
+            )
+            return
+
+        self.logger.info(
+            f"Processing batch of "
+            f"{len(valid_docs)} docs"
+        )
+
+        # =====================================
+        # POSTGRES UPSERT
+        # =====================================
 
         try:
-            # =============================
-            # POSTGRES
-            # =============================
-            postgres_doc = (
-                self.upsert_postgres(
-                    document
-                )
-            )
 
-            # =============================
-            # COMMIT FIRST
-            # =============================
+            for doc in valid_docs:
+                self.upsert_postgres(doc)
+
             self.db.commit()
 
-            # =============================
-            # OPENSEARCH
-            # =============================
-            opensearch_success = (
-                self.upsert_opensearch(
-                    document
+        except Exception:
+            self.logger.exception(
+                "Postgres batch failed"
+            )
+
+            self.db.rollback()
+            return
+
+        # =====================================
+        # BATCH EMBEDDINGS
+        # =====================================
+
+        texts = [
+            f"{doc['title']} {doc['content']}"
+            for doc in valid_docs
+        ]
+
+        try:
+
+            embeddings = (
+                self.embedding_service.model.encode(
+                    texts,
+                    batch_size=32,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
                 )
             )
 
-            # =============================
-            # FAISS
-            # =============================
-            faiss_success = (
-                self.add_to_faiss(
-                    document
-                )
+        except Exception:
+            self.logger.exception(
+                "Embedding batch failed"
             )
+            return
 
-            # =============================
-            # PERSIST FAISS INDEX
-            # =============================
-            if faiss_success:
+        # =====================================
+        # FAISS BULK INSERT
+        # =====================================
+
+        try:
+
+            for doc, embedding in zip(
+                valid_docs,
+                embeddings,
+            ):
+
+                self.faiss_service.add_or_update_document_vector(
+                    doc_id=str(doc["id"]),
+                    embedding=embedding,
+                )
+
+            # IMPORTANT:
+            # DO NOT SAVE EVERY BATCH
+            if save_faiss:
                 self.faiss_service.save_index()
 
-            return {
-                "success": True,
-                "document_id": (
-                    postgres_doc.id
-                ),
-                "version": (
-                    postgres_doc.version
-                ),
-                "postgres": True,
-                "opensearch": (
-                    opensearch_success
-                ),
-                "faiss": (
-                    faiss_success
-                ),
-            }
+        except Exception:
+            self.logger.exception(
+                "FAISS batch failed"
+            )
 
-        except Exception as e:
-            self.db.rollback()
+        # =====================================
+        # OPENSEARCH BULK INDEX
+        # =====================================
 
-            return {
-                "success": False,
-                "error": str(e),
-            }
+        try:
+
+            self.opensearch_service.bulk_index_documents(
+                valid_docs
+            )
+
+        except Exception:
+            self.logger.exception(
+                "OpenSearch bulk failed"
+            )
+
+        duration = time.time() - start_time
+
+        self.logger.info(
+            f"Batch completed in "
+            f"{duration:.2f}s"
+        )
 
     # =====================================
     # SOFT DELETE

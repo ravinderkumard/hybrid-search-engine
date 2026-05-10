@@ -8,9 +8,12 @@ from app.services.faiss_service import FAISSService
 from app.services.hybrid_service import (
     HybridSearchService,
 )
-
+from app.services.CohereReranker import CohereReranker
 from app.services.document_metadata_service import (    DocumentMetadataService,)
 from app.services.metrics import (bm25_latency,embedding_latency,faiss_latency,rrf_latency,metadata_latency,total_search_latency)
+from dotenv import load_dotenv
+import os
+
 class SearchEngine:
     """
     Unified hybrid retrieval engine.
@@ -25,16 +28,23 @@ class SearchEngine:
     """
 
     def __init__(self):
+        load_dotenv()
+        api_key = os.getenv("COHERE_API_KEY")
         self.bm25_service = BM25Service()
         self.embedding_service = (
             EmbeddingService()
         )
         self.faiss_service = FAISSService()
+        reranker = CohereReranker(
+            api_key = api_key
+            
+        )
         self.hybrid_service = (
             HybridSearchService(
                 bm25_service=self.bm25_service,
                 vector_service=self.faiss_service,
-                embedding_service=self.embedding_service
+                embedding_service=self.embedding_service,
+                reranker=reranker
             )
         )
         self.metadata_service = (
