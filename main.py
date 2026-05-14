@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.dependencies import (
     get_search_engine,
 )
+from app.core.opensearch_client import OpenSearchClient
 from app.engine.search_engine import (
     SearchEngine,
 )
@@ -76,12 +77,12 @@ def root():
 # HEALTH
 # =========================================
 @app.get("/health")
-def health_check(
+async def health_check(
     search_engine: SearchEngine = Depends(
         get_search_engine
     ),
 ):
-    component_health = (
+    component_health = await (
         search_engine.health_check()
     )
 
@@ -107,11 +108,15 @@ def health_check(
         "components": component_health,
     }
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    await OpenSearchClient.close_client()
+
 # =========================================
 # SEARCH
 # =========================================
 @app.post("/search")
-def search(
+async def search(
     request: SearchRequest,
     http_request: Request,
     search_engine: SearchEngine = Depends(
@@ -187,7 +192,7 @@ def search(
 
     try:
         with total_search_latency.time():        
-            results = search_engine.search(
+            results = await search_engine.search(
                 query=query,
                 top_k=request.top_k,
             )

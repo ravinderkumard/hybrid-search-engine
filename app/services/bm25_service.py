@@ -27,7 +27,7 @@ class BM25Service:
     #. O(LogN)
     #   ANN - HNSW
     # =========================================
-    def search(
+    async def search(
         self,
         query: str,
         top_k: int = 10,
@@ -70,7 +70,7 @@ class BM25Service:
             }
 
             try:
-                response = self.client.search(
+                response = await self.client.search(
                     index=self.index_name,
                     body=search_body,
                     request_timeout=10,
@@ -120,11 +120,11 @@ class BM25Service:
     # =========================================
     # HEALTH
     # =========================================
-    def health_check(self) -> bool:
+    async def health_check(self) -> bool:
         """
         Validates OpenSearch availability.
         """
         try:
-            return self.client.ping()
+            return await self.client.ping()
         except Exception:
             return False

@@ -17,6 +17,6 @@ class EmbeddingService:
         ]
         return self.model.encode(texts, convert_to_numpy=True,normalize_embeddings=True)
 
-    def encode_query(self, query):
+    async def encode_query(self, query):
         with embedding_latency.time():
             return self.model.encode([query], convert_to_numpy=True,normalize_embeddings=True)

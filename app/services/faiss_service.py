@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 from typing import List, Dict, Any
@@ -114,7 +115,7 @@ class FAISSService:
     # =========================================
     # SEARCH
     # =========================================
-    def search(
+    async def search(
         self,
         query_embedding,
         top_k: int = 10,
@@ -163,12 +164,11 @@ class FAISSService:
             top_k,
         )
 
-        distances, indices = (
-            self.index.search(
+        distances, indices = await asyncio.to_thread(
+                self.index.search,
                 query_vector,
                 search_k,
             )
-        )
 
         results = []
 

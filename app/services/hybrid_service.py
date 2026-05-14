@@ -1,6 +1,7 @@
 from app.core.config import settings
 from collections import defaultdict
 from app.services.metrics import rrf_latency,total_search_latency
+import asyncio
 class HybridSearchService:
     def __init__(self, bm25_service, vector_service, embedding_service, reranker=None):
         self.bm25_service = bm25_service
@@ -97,20 +98,33 @@ class HybridSearchService:
 
         return ranked_results[:top_k]
 
-    def search(self, query, top_k=5):
+    async def search(self, query, top_k=5):
         
             if top_k is None:
                 top_k = settings.TOP_K
 
             retrieval_k = settings.RETRIEVAL_K
-            bm25_results = self.bm25_service.search(query, top_k=retrieval_k)
 
-            query_embedding = self.embedding_service.encode_query(query)
-            
-            vector_results = self.vector_service.search(
-                query_embedding,
-                top_k=retrieval_k
+            bm25_task = asyncio.create_task(
+                self.bm25_service.search(query,top_k=retrieval_k)
             )
+            embedding_task = asyncio.create_task(
+                self.embedding_service.encode_query(query)
+            )
+            bm25_results,query_embedding = await asyncio.gather(bm25_task,embedding_task)
+
+            vector_results = await asyncio.wait_for(
+                self.vector_service.search(query_embedding,top_k=retrieval_k),timeout=3
+            )
+
+            # bm25_results = await self.bm25_service.search(query, top_k=retrieval_k)
+
+            # query_embedding = await self.embedding_service.encode_query(query)
+            
+            # vector_results = await self.vector_service.search(
+            #     query_embedding,
+            #     top_k=retrieval_k
+            # )
             
             if not bm25_results and not vector_results:
                 return []
@@ -188,7 +202,10 @@ class HybridSearchService:
             if self.reranker:
                 try:
                     docs_text = self._prepare_documents_for_rerank(fused_results)
-                    reranked = self.reranker.rerank(query,fused_results,top_k)
+                    reranked = await asyncio.to_thread(
+                        self.reranker.rerank,query,fused_results,top_k
+                    )
+                    
                     return reranked[:top_k]
                 except Exception as e:
                     return fused_results[:top_k]

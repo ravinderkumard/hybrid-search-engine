@@ -17,7 +17,7 @@ torchvision
 torchaudio
 
 # OpenSearch
-opensearch-py
+opensearch-py[async]
 
 # Optional production utilities
 tenacity

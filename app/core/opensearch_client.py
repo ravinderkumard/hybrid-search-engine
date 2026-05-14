@@ -1,4 +1,4 @@
-from opensearchpy import OpenSearch
+from opensearchpy import AsyncOpenSearch
 from opensearchpy.exceptions import ConnectionError as OpenSearchConnectionError
 
 from app.core.config import settings
@@ -19,12 +19,12 @@ class OpenSearchClient:
     _client = None
 
     @classmethod
-    def get_client(cls) -> OpenSearch:
+    def get_client(cls) -> AsyncOpenSearch:
         """
         Returns singleton OpenSearch client instance.
         """
         if cls._client is None:
-            cls._client = OpenSearch(
+            cls._client = AsyncOpenSearch(
                 hosts=[
                     {
                         "host": settings.OPENSEARCH_HOST,
@@ -47,7 +47,7 @@ class OpenSearchClient:
         return cls._client
 
     @classmethod
-    def health_check(cls) -> bool:
+    async def health_check(cls) -> bool:
         """
         Validates OpenSearch connectivity.
 
@@ -56,14 +56,14 @@ class OpenSearchClient:
         """
         try:
             client = cls.get_client()
-            return client.ping()
+            return await client.ping()
         except OpenSearchConnectionError:
             return False
         except Exception:
             return False
 
     @classmethod
-    def get_cluster_info(cls) -> dict:
+    async def get_cluster_info(cls) -> dict:
         """
         Returns OpenSearch cluster metadata.
 
@@ -74,9 +74,15 @@ class OpenSearchClient:
         """
         try:
             client = cls.get_client()
-            return client.info()
+            return await client.info()
         except Exception as e:
             return {
                 "status": "unreachable",
                 "error": str(e),
             }
+        
+    @classmethod
+    async def close_client(cls):
+        if cls._client:
+            await cls._client.close()
+            cls._client = None

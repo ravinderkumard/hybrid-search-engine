@@ -2,7 +2,7 @@ import os
 import time
 import logging
 
-from opensearchpy import OpenSearch
+from opensearchpy import AsyncOpenSearch
 
 # =========================================
 # LOGGING
@@ -25,7 +25,7 @@ INDEX_NAME = "hybrid-search-documents"
 # =========================================
 # CLIENT
 # =========================================
-client = OpenSearch(
+client = AsyncOpenSearch(
     hosts=[{
         "host": OPENSEARCH_HOST,
         "port": OPENSEARCH_PORT

@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 from opensearchpy.helpers import bulk
 
 from app.core.config import settings
-from app.core.opensearch_client import OpenSearchClient
+from app.core.opensearch_sync_client import OpenSearchSyncClient
 
 
 class OpenSearchIndexService:
@@ -18,7 +18,7 @@ class OpenSearchIndexService:
     """
 
     def __init__(self):
-        self.client = OpenSearchClient.get_client()
+        self.client = OpenSearchSyncClient.get_client()
         self.index_name = settings.OPENSEARCH_INDEX
 
     # =========================================

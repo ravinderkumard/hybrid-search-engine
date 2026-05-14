@@ -1,6 +1,7 @@
 import faiss
 import numpy as np
 from app.core.config import settings
+import asyncio
 
 class VectorService:
     def __init__(self, documents, embeddings):
@@ -13,11 +14,12 @@ class VectorService:
         # Add embeddings
         self.index.add(np.array(embeddings).astype("float32"))
 
-    def search(self, query_embedding, top_k=10):
+    async def search(self, query_embedding, top_k=10):
         if top_k is None:
             top_k = settings.RETRIEVAL_K
 
-        distances, indices = self.index.search(
+        distances, indices = await asyncio.to_thread(
+            self.index.search,
             query_embedding.astype("float32"),
             top_k
         )

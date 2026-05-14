@@ -54,7 +54,7 @@ class SearchEngine:
     # =========================================
     # SEARCH
     # =========================================
-    def search(
+    async def search(
         self,
         query: str,
         top_k: int = 10,
@@ -82,7 +82,7 @@ class SearchEngine:
             # SPARSE SEARCH (OpenSearch BM25)
             # =====================================
             with bm25_latency.time():
-                bm25_results = (
+                bm25_results = await (
                     self.bm25_service.search(
                         query=query,
                         top_k=top_k * 2,
@@ -93,14 +93,14 @@ class SearchEngine:
             # DENSE SEARCH (FAISS)
             # =====================================
             with embedding_latency.time():
-                query_embedding = (
+                query_embedding = await (
                     self.embedding_service.encode_query(
                         query
                     )
                 )
 
             with faiss_latency.time():
-                dense_results = (
+                dense_results = await (
                     self.faiss_service.search(
                         query_embedding=query_embedding,
                         top_k=top_k * 2,
@@ -111,7 +111,7 @@ class SearchEngine:
             # HYBRID FUSION (RRF)
             # =====================================
             with rrf_latency.time():
-                hybrid_results = (
+                hybrid_results = await (
                     self.hybrid_service.search(
                         query=query,
                         top_k=top_k,
@@ -151,7 +151,7 @@ class SearchEngine:
     # =========================================
     # HEALTH
     # =========================================
-    def health_check(self) -> Dict[str, bool]:
+    async def health_check(self) -> Dict[str, bool]:
         """
         Validates all major search components.
         """
@@ -166,7 +166,7 @@ class SearchEngine:
             metadata_healthy = False
 
         return {
-            "bm25_opensearch": (
+            "bm25_opensearch": await (
                 self.bm25_service.health_check()
             ),
             "embedding_model": (
