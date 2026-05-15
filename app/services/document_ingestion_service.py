@@ -20,6 +20,7 @@ from app.services.faiss_service import (
 )
 import logging
 import time
+from app.core.redis_client import redis_client
 
 class DocumentIngestionService:
     """
@@ -44,7 +45,7 @@ class DocumentIngestionService:
         )
 
         self.embedding_service = (
-            EmbeddingService()
+            EmbeddingService(redis_client)
         )
 
         self.faiss_service = (

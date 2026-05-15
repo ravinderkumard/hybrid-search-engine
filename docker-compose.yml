@@ -107,6 +107,7 @@ services:
 
   search_init:
     build: .
+    image: hybrid-search-engine:latest
     depends_on:
       opensearch:
         condition: service_healthy
@@ -121,7 +122,7 @@ services:
   # =====================================
 
   ingestion-worker:
-    build: .
+    image: hybrid-search-engine:latest
     container_name: ingestion-worker
 
     depends_on:
@@ -151,11 +152,19 @@ services:
 
     restart: "no"
 
+  redis:
+    image: redis:7-alpine
+    container_name: hybrid-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - hybrid-net
+
   # =====================================
   # FASTAPI APP INSTANCES
   # =====================================
   app1:
-    build: .
+    image: hybrid-search-engine:latest
     container_name: hybrid-app1
     expose:
       - "8000"

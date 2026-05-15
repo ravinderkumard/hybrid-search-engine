@@ -20,7 +20,7 @@ from app.core.config import settings
 from app.services.embedding_service import (
     EmbeddingService,
 )
-
+from app.core.redis_client import redis_client
 
 # =========================================
 # LOAD DOCUMENTS
@@ -79,7 +79,7 @@ def main():
     # EMBEDDING SERVICE
     # =====================================
     embedding_service = (
-        EmbeddingService()
+        EmbeddingService(redis_client)
     )
 
     corpus = []

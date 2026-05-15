@@ -1,4 +1,6 @@
 import cohere
+import time
+from app.core.logger import logger
 
 class CohereReranker:
     def __init__(self, api_key):
@@ -7,15 +9,23 @@ class CohereReranker:
 
     def rerank(self, query, documents, top_k):
         texts = [
-            f"{doc['title']} {doc['content']}"[:2000]
+            f"{doc['title']} {doc['content']}"[:700]
             for doc in documents
         ]
-
+        rerank_start = time.perf_counter()
         response = self.client.rerank(
             query=query,
             documents=texts,
             top_n=top_k
         )
+        rerank_latency_ms = (
+            time.perf_counter() - rerank_start
+        ) * 1000
+        logger.info({
+            "stage": "reranker",
+            "latency_ms": round(rerank_latency_ms, 2),
+        })
+        
 
         return [
             documents[result.index]

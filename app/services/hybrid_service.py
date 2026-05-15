@@ -2,6 +2,9 @@ from app.core.config import settings
 from collections import defaultdict
 from app.services.metrics import rrf_latency,total_search_latency
 import asyncio
+import time
+from app.core.logger import logger
+
 class HybridSearchService:
     def __init__(self, bm25_service, vector_service, embedding_service, reranker=None):
         self.bm25_service = bm25_service
@@ -104,19 +107,33 @@ class HybridSearchService:
                 top_k = settings.TOP_K
 
             retrieval_k = settings.RETRIEVAL_K
-
+            retrieval_start = time.perf_counter()
             bm25_task = asyncio.create_task(
                 self.bm25_service.search(query,top_k=retrieval_k)
             )
+            retrieval_latency = (
+                time.perf_counter() - retrieval_start
+            ) * 1000
+            logger.info({
+                "stage": "parallel_retrieval",
+                "latency_ms": round(retrieval_latency, 2),
+                "query": query
+            })
             embedding_task = asyncio.create_task(
                 self.embedding_service.encode_query(query)
             )
             bm25_results,query_embedding = await asyncio.gather(bm25_task,embedding_task)
-
+            faiss_start = time.perf_counter()
             vector_results = await asyncio.wait_for(
                 self.vector_service.search(query_embedding,top_k=retrieval_k),timeout=3
             )
-
+            faiss_latency_ms = (
+                time.perf_counter() - faiss_start
+            ) * 1000
+            logger.info({
+                "stage": "faiss_search",
+                "latency_ms": round(faiss_latency_ms, 2),
+            })
             # bm25_results = await self.bm25_service.search(query, top_k=retrieval_k)
 
             # query_embedding = await self.embedding_service.encode_query(query)
@@ -197,15 +214,27 @@ class HybridSearchService:
                     top_k=top_k,
                 )
 
-            fused_results = fused_results[:settings.RETRIEVAL_K]
+            fused_results = fused_results[:settings.RERANK_TOP_K]
 
             if self.reranker:
                 try:
                     docs_text = self._prepare_documents_for_rerank(fused_results)
+                    rerank_start = time.perf_counter()
                     reranked = await asyncio.to_thread(
                         self.reranker.rerank,query,fused_results,top_k
                     )
-                    
+                    rerank_latency_ms = (
+                        time.perf_counter() - rerank_start
+                    ) * 1000
+                    logger.info({
+                        "stage": "reranker",
+                        "latency_ms": round(rerank_latency_ms, 2),
+                    })
+                    logger.info({
+                        "rerank_docs": len(docs_text),
+                        "avg_doc_size": sum(len(t) for t in docs_text) / len(docs_text),
+                        "total_chars": sum(len(t) for t in docs_text)
+                    })
                     return reranked[:top_k]
                 except Exception as e:
                     return fused_results[:top_k]

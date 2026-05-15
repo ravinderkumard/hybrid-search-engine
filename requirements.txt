@@ -1,20 +1,16 @@
 fastapi
 uvicorn
-streamlit
-rank-bm25
+
+# rank-bm25
 sentence-transformers
 faiss-cpu
 numpy
-pandas
+
 pydantic
 pydantic-settings
 python-dotenv
 pytest
-black
-flake8
-torch
-torchvision
-torchaudio
+
 
 # OpenSearch
 opensearch-py[async]
@@ -35,3 +31,5 @@ python-json-logger
 cohere
 
 minio
+
+redis[hiredis]

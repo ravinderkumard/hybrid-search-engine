@@ -13,6 +13,7 @@ from app.services.document_metadata_service import (    DocumentMetadataService,
 from app.services.metrics import (bm25_latency,embedding_latency,faiss_latency,rrf_latency,metadata_latency,total_search_latency)
 from dotenv import load_dotenv
 import os
+from app.core.redis_client import redis_client
 
 class SearchEngine:
     """
@@ -32,7 +33,7 @@ class SearchEngine:
         api_key = os.getenv("COHERE_API_KEY")
         self.bm25_service = BM25Service()
         self.embedding_service = (
-            EmbeddingService()
+            EmbeddingService(redis_client)
         )
         self.faiss_service = FAISSService()
         reranker = CohereReranker(
