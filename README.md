@@ -263,7 +263,7 @@ This project demonstrates:
 
 # Future Roadmap (Phase 5+)
 
-## Planned:
+## Planned:(Refer branch: feature/open-search_elastic-search)
 
 * Elasticsearch / OpenSearch
 * FAISS HNSW / Qdrant
