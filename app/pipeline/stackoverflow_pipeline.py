@@ -33,7 +33,9 @@ class StackOverflowPipeline:
 
     def run(self):
         buffer = []
-        count = 0
+        raw_count = 0
+        accepted_count = 0
+        batch_number = 0
 
         logger.info(
             "Starting StackOverflow ingestion"
@@ -43,6 +45,7 @@ class StackOverflowPipeline:
             self.parser.stream_questions()
         ):
 
+            raw_count += 1
             transformed = (
                 self.transformer.transform(
                     raw_doc
@@ -52,38 +55,55 @@ class StackOverflowPipeline:
             if not transformed:
                 continue
 
+            accepted_count += 1
             buffer.append(transformed)
 
             if len(buffer) >= self.batch_size:
-                self.flush(buffer)
+                batch_number += 1
+                summary = self.flush(buffer)
+                logger.info(
+                    {
+                        "event": "stackoverflow_batch_processed",
+                        "batch_number": batch_number,
+                        "records_read_total": raw_count,
+                        "records_accepted_total": accepted_count,
+                        "batch_size": len(buffer),
+                        **(summary or {}),
+                    }
+                )
                 buffer.clear()
 
-            count += 1
-
-            if count % 1000 == 0:
+            if raw_count % 1000 == 0:
                 logger.info(
-                    f"Processed {count} docs"
+                    f"Processed {raw_count} raw docs"
                 )
 
-            if self.limit and count >= self.limit:
+            if self.limit and raw_count >= self.limit:
                 break
 
         # final flush
         if buffer:
-            self.flush(buffer)
+            batch_number += 1
+            summary = self.flush(buffer)
+            logger.info(
+                {
+                    "event": "stackoverflow_batch_processed",
+                    "batch_number": batch_number,
+                    "records_read_total": raw_count,
+                    "records_accepted_total": accepted_count,
+                    "batch_size": len(buffer),
+                    **(summary or {}),
+                }
+            )
 
         logger.info(
-            f"Finished ingestion: {count} docs"
+            f"Finished ingestion: {accepted_count} accepted docs from {raw_count} raw docs"
         )
 
     def flush(self, batch):
         try:
-            self.ingestion_service.ingest_batch(
+            return self.ingestion_service.ingest_batch(
                 batch
-            )
-
-            logger.info(
-                f"Ingested batch of {len(batch)}"
             )
 
         except Exception as e:
@@ -91,3 +111,4 @@ class StackOverflowPipeline:
                 f"Batch failed: {e}",
                 exc_info=True
             )
+            return None

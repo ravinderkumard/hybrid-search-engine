@@ -1,10 +1,14 @@
 from app.ingestion.arxiv_parser import (
     ArxivParser,
 )
+import logging
 
 from app.services.document_ingestion_service import (
     DocumentIngestionService,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class ArxivPipeline:
@@ -31,27 +35,55 @@ class ArxivPipeline:
 
         batch = []
         count = 0
+        batch_number = 0
 
         for doc in (
             self.parser.stream_documents()
         ):
 
+            count += 1
             batch.append(doc)
 
             if len(batch) >= self.batch_size:
+                batch_number += 1
 
-                self.ingestion_service.ingest_batch(
-                    batch
+                summary = (
+                    self.ingestion_service.ingest_batch(
+                        batch,
+                        save_faiss=True,
+                    )
+                )
+
+                logger.info(
+                    {
+                        "event": "arxiv_batch_processed",
+                        "batch_number": batch_number,
+                        "records_read_total": count,
+                        "batch_size": len(batch),
+                        **summary,
+                    }
                 )
 
                 batch.clear()
-
-            count += 1
 
             if count >= self.limit:
                 break
 
         if batch:
-            self.ingestion_service.ingest_batch(
-                batch
+            batch_number += 1
+            summary = (
+                self.ingestion_service.ingest_batch(
+                    batch,
+                    save_faiss=True,
+                )
+            )
+
+            logger.info(
+                {
+                    "event": "arxiv_batch_processed",
+                    "batch_number": batch_number,
+                    "records_read_total": count,
+                    "batch_size": len(batch),
+                    **summary,
+                }
             )

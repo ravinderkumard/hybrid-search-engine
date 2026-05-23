@@ -1,10 +1,13 @@
 from typing import Dict, Any, List
+import asyncio
+import time
 
 from app.services.bm25_service import BM25Service
 from app.services.embedding_service import (
     EmbeddingService,
 )
-from app.services.faiss_service import FAISSService
+# from app.services.faiss_service import FAISSService
+from app.core.vector_store import faiss_service
 from app.services.hybrid_service import (
     HybridSearchService,
 )
@@ -14,6 +17,7 @@ from app.services.metrics import (bm25_latency,embedding_latency,faiss_latency,r
 from dotenv import load_dotenv
 import os
 from app.core.redis_client import redis_client
+from app.core.logger import logger
 
 class SearchEngine:
     """
@@ -35,8 +39,8 @@ class SearchEngine:
         self.embedding_service = (
             EmbeddingService(redis_client)
         )
-        self.faiss_service = FAISSService()
-        reranker = CohereReranker(
+        self.faiss_service = faiss_service
+        self.reranker = CohereReranker(
             api_key = api_key
             
         )
@@ -45,7 +49,6 @@ class SearchEngine:
                 bm25_service=self.bm25_service,
                 vector_service=self.faiss_service,
                 embedding_service=self.embedding_service,
-                reranker=reranker
             )
         )
         self.metadata_service = (
@@ -82,31 +85,31 @@ class SearchEngine:
             # =====================================
             # SPARSE SEARCH (OpenSearch BM25)
             # =====================================
-            with bm25_latency.time():
-                bm25_results = await (
-                    self.bm25_service.search(
-                        query=query,
-                        top_k=top_k * 2,
-                    )
-                )
+            # with bm25_latency.time():
+            #     bm25_results = await (
+            #         self.bm25_service.search(
+            #             query=query,
+            #             top_k=top_k * 2,
+            #         )
+            #     )
 
-            # =====================================
-            # DENSE SEARCH (FAISS)
-            # =====================================
-            with embedding_latency.time():
-                query_embedding = await (
-                    self.embedding_service.encode_query(
-                        query
-                    )
-                )
+            # # =====================================
+            # # DENSE SEARCH (FAISS)
+            # # =====================================
+            # with embedding_latency.time():
+            #     query_embedding = await (
+            #         self.embedding_service.encode_query(
+            #             query
+            #         )
+            #     )
 
-            with faiss_latency.time():
-                dense_results = await (
-                    self.faiss_service.search(
-                        query_embedding=query_embedding,
-                        top_k=top_k * 2,
-                    )
-                )
+            # with faiss_latency.time():
+            #     dense_results = await (
+            #         self.faiss_service.search(
+            #             query_embedding=query_embedding,
+            #             top_k=top_k * 2,
+            #         )
+            #     )
 
             # =====================================
             # HYBRID FUSION (RRF)
@@ -128,6 +131,33 @@ class SearchEngine:
                         hybrid_results
                     )
                 )
+
+            if self.reranker and enriched_results:
+                rerank_start = time.perf_counter()
+                try:
+                    reranked_results = await asyncio.to_thread(
+                        self.reranker.rerank,
+                        query,
+                        enriched_results,
+                        top_k,
+                    )
+
+                    logger.info({
+                        "stage": "reranker",
+                        "latency_ms": round(
+                            (time.perf_counter() - rerank_start) * 1000,
+                            2,
+                        ),
+                        "candidate_count": len(enriched_results),
+                    })
+
+                    enriched_results = reranked_results[:top_k]
+
+                except Exception as e:
+                    logger.warning({
+                        "stage": "reranker_failed",
+                        "error": str(e),
+                    })
 
             return {
                 "query": query,

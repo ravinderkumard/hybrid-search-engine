@@ -28,17 +28,24 @@ class DocumentMetadataService:
     def get_documents_by_ids(
         self,
         doc_ids: List[str],
-    ) -> Dict[str, Document]:
+    ) -> Dict[int, Document]:
         """
         Returns active documents only.
         """
         if not doc_ids:
             return {}
 
+        normalized_doc_ids = []
+        for doc_id in doc_ids:
+            try:
+                normalized_doc_ids.append(int(doc_id))
+            except (TypeError, ValueError):
+                continue
+
         docs = (
             self.db.query(Document)
             .filter(
-                Document.id.in_(doc_ids),
+                Document.id.in_(normalized_doc_ids),
                 Document.is_active
                 == True,
             )
@@ -74,9 +81,12 @@ class DocumentMetadataService:
         enriched = []
 
         for result in search_results:
-            doc = metadata_map.get(
-                result["doc_id"]
-            )
+            try:
+                lookup_id = int(result["doc_id"])
+            except (TypeError, ValueError):
+                continue
+
+            doc = metadata_map.get(lookup_id)
 
             # Skip deleted/inactive
             if not doc:

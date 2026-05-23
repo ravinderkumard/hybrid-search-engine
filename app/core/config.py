@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # FAISS
     # =========================
     FAISS_INDEX_PATH: str = "app/data/faiss.index"
+    DOCUMENT_PKL: str = "app/data/documents.pkl"
 
     # =========================
     # OPENSEARCH
@@ -55,7 +56,7 @@ class Settings(BaseSettings):
     MAX_TOP_K: int = 50
     RETRIEVAL_K: int = 50
     RERANK_TOP_K: int = 10
-    MIN_DENSE_SIMILARITY: float = 0.45
+    MIN_DENSE_SIMILARITY: float = 0.10
 
     FAISS_EF_SEARCH: int = 128
 

@@ -29,9 +29,15 @@ class Document(Base):
     # PRIMARY KEY
     # =====================================
     id = Column(
-        String,
+        Integer,
         primary_key=True,
-        index=True,
+        autoincrement=True,
+    )
+    arxiv_id = Column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True
     )
 
     # =====================================

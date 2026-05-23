@@ -1,5 +1,5 @@
 import asyncio
-import json
+
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -7,8 +7,8 @@ import faiss
 import numpy as np
 
 from app.core.config import settings
-import os
 
+from app.core.logger import logger
 
 class FAISSService:
     """
@@ -28,32 +28,12 @@ class FAISSService:
             settings.FAISS_INDEX_PATH
         )
 
-        self.data_path = (
-            settings.DATA_PATH
-        )
-
-        self.docstore_path = (
-            "data/faiss_docstore.json"
-        )
 
         # =====================================
         # LOAD DATA
         # =====================================
         self.index = (
             self._load_index()
-        )
-
-        self.documents = (
-            self._load_documents()
-        )
-
-        self.document_lookup = {
-            str(doc["id"]): doc
-            for doc in self.documents
-        }
-
-        self.doc_id_map = (
-            self._load_docstore()
         )
 
     # =========================================
@@ -66,16 +46,28 @@ class FAISSService:
         if not Path(
             self.index_path
         ).exists():
-            raise FileNotFoundError(
-                f"FAISS index not found: {self.index_path}"
+            logger.warning(
+                "FAISS index not found. "
+                "Initializing empty index."
             )
+
+            self.index = None
+            self.docstore = {}
+            return
+            # raise FileNotFoundError(
+            #     f"FAISS index not found: {self.index_path}"
+            # )
 
         index = faiss.read_index(
             self.index_path
         )
+        # import pickle
+        # if os.path.exists(str(self.doc_path)):
+        #     with open(str(self.doc_path),"rb") as f:
+        #         self.documents = pickle.load(f)
 
-        if hasattr(index,"hnsw"):
-            index.hnsw.efSearch = (
+        try:
+            index.index.hnsw.efSearch = (
                 settings.FAISS_EF_SEARCH
             )
             print(
@@ -83,34 +75,34 @@ class FAISSService:
                 f"efSearch set to "
                 f"{settings.FAISS_EF_SEARCH}"
             )
-        else:
-            print(
-                "Flat FAISS index detected"
-            )
+        except Exception:
+            pass
+
         return index
 
-    # =========================================
-    # LOAD DOCS
-    # =========================================
-    def _load_documents(self):
-        """
-        Loads source documents metadata.
-        """
-        if not Path(
-            self.data_path
-        ).exists():
-            raise FileNotFoundError(
-                f"Documents not found: {self.data_path}"
-            )
+    def initialize_index(
+        self,
+        embeddings
+    ):
 
-        with open(
-            self.data_path,
-            "r",
-            encoding="utf-8",
-        ) as f:
-            docs = json.load(f)
+        self.dimension = embeddings.shape[1]
 
-        return docs
+        base_index = faiss.IndexHNSWFlat(
+            self.dimension,
+            32,
+            faiss.METRIC_INNER_PRODUCT
+        )
+
+        self.index = faiss.IndexIDMap(base_index)
+
+        base_index.hnsw.efSearch = (
+            settings.FAISS_EF_SEARCH
+        )
+
+        logger.info(
+            "Initialized new FAISS HNSW index."
+        )
+
 
     # =========================================
     # SEARCH
@@ -135,7 +127,11 @@ class FAISSService:
             }
         ]
         """
-
+        if self.index is None:
+            logger.warning("FAISS index not initialized.")
+            return []
+        if self.index.ntotal == 0:
+            return []
         if query_embedding is None:
             return []
 
@@ -163,12 +159,17 @@ class FAISSService:
             top_k * 3,
             top_k,
         )
-
+        faiss.normalize_L2(query_vector)
         distances, indices = await asyncio.to_thread(
                 self.index.search,
                 query_vector,
                 search_k,
             )
+        logger.info({
+            "indices": indices[0].tolist(),
+            "distances": distances[0].tolist(),
+            "total_vectors": self.index.ntotal
+        })
 
         results = []
 
@@ -185,65 +186,14 @@ class FAISSService:
             if idx < 0:
                 continue
 
-            doc_id = self.doc_id_map["vector_to_doc_id"].get(str(idx))
-
-            if not doc_id:
-                continue
-
-            # doc = next(
-            #     (
-            #         d for d in self.documents
-            #         if str(d.get("id")) == str(doc_id)
-            #     ),
-            #     None
-            # )
-            doc = self.document_lookup.get(
-                str(doc_id)
-            )
-
-            if not doc:
-                continue
-
-            doc_id = str(
-                doc.get("id")
-            )
-
-            # =================================
-            # STALE VECTOR FILTER
-            # =================================
-            latest_vector_index = (
-                self.doc_id_map[
-                    "doc_id_to_vector"
-                ].get(str(doc_id))
-            )
-
-            # Skip stale vectors
-            if (
-                latest_vector_index
-                is not None
-                and idx
-                != latest_vector_index
-            ):
-                continue
+            doc_id = int(idx)
 
             # Convert L2 distance → similarity proxy
-            similarity = (
-                1 / (1 + distance)
-                if distance >= 0
-                else 0
-            )
+            similarity = float(distance)
 
             results.append(
                 {
-                    "doc_id": str(
-                        doc.get("id")
-                    ),
-                    "title": doc.get(
-                        "title", ""
-                    ),
-                    "content": doc.get(
-                        "content", ""
-                    ),
+                    "doc_id": doc_id,
                     "dense_score": float(
                         similarity
                     ),
@@ -268,10 +218,8 @@ class FAISSService:
         """
         return (
             self.index is not None
-            and len(
-                self.documents
-            )
-            > 0
+            and 
+            self.index.ntotal > 0
         )
     
     # =========================================
@@ -290,67 +238,17 @@ class FAISSService:
             self.index,
             str(self.index_path),
         )
+        # import pickle
+        # with open(
+        #     str(self.doc_path),
+        #     "wb"
+        # ) as f:
+        #     pickle.dump(self.documents,f)
 
         return True
     
-        # =========================================
-    # LOAD DOCSTORE
-    # =========================================
-    def _load_docstore(self):
-        """
-        Loads doc_id → latest vector_index mapping.
-
-        Purpose:
-        Prevents stale vector drift
-        during incremental updates.
-        """
-        if not Path(
-            self.docstore_path
-        ).exists():
-            return {
-                "doc_id_to_vector": {},
-                "vector_to_doc_id": {}
-            }
-
-        with open(
-            self.docstore_path,
-            "r",
-            encoding="utf-8",
-        ) as f:
-            data = json.load(f)
-
-            if "doc_id_to_vector" not in data:
-                return {
-                    "doc_id_to_vector": data,
-                    "vector_to_doc_id": {
-                        str(v): str(k)
-                        for k, v in data.items()
-                    }
-                }
-
-            return data
     
     # =========================================
-    # SAVE DOCSTORE
-    # =========================================
-    def _save_docstore(self):
-        """
-        Persists doc_id → latest vector_index mapping.
-        """
-        with open(
-            self.docstore_path,
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(
-                self.doc_id_map,
-                f,
-                indent=2,
-            )
-
-        return True
-    
-        # =========================================
     # ADD / UPDATE DOCUMENT VECTOR
     # =========================================
     def add_or_update_document_vector(
@@ -366,6 +264,11 @@ class FAISSService:
         Old vectors remain physically,
         but docstore ensures newest wins.
         """
+
+        if self.index is None:
+            raise RuntimeError(
+                "FAISS index is not initialized."
+            )
 
         vector = np.array(
             embedding
@@ -384,31 +287,48 @@ class FAISSService:
                 f"{vector.shape}"
             )
 
-        # =====================================
-        # ADD VECTOR
-        # =====================================
-        self.index.add(
-            vector
+        doc_id_array = np.array(
+            [int(doc_id)]
+        ).astype("int64")
+
+        selector = faiss.IDSelectorArray(
+            1,
+            faiss.swig_ptr(doc_id_array),
         )
 
-        # =====================================
-        # LATEST VECTOR INDEX
-        # =====================================
-        latest_index = (
-            self.index.ntotal - 1
+        removed_count = 0
+        try:
+            removed_count = int(
+                self.index.remove_ids(
+                    selector
+                )
+            )
+        except Exception:
+            removed_count = 0
+
+        faiss.normalize_L2(vector)
+
+        self.index.add_with_ids(
+            vector,
+            doc_id_array,
         )
 
-        # =====================================
-        # UPDATE DOCSTORE
-        # =====================================
-        self.doc_id_map["doc_id_to_vector"][str(doc_id)] = latest_index
-        self.doc_id_map["vector_to_doc_id"][str(latest_index)] = str(doc_id)
+        action = (
+            "updated"
+            if removed_count > 0
+            else "inserted"
+        )
 
-        # =====================================
-        # PERSIST
-        # =====================================
-        self._save_docstore()
+        logger.info({
+            "doc_id": int(doc_id),
+            "action": action,
+            "removed_count": removed_count,
+            "total_vectors": self.index.ntotal
+        })
 
-        self.save_index()
-
-        return latest_index
+        return {
+            "action": action,
+            "removed_count": removed_count,
+            "index_position": self.index.ntotal - 1,
+            "doc_id": int(doc_id),
+        }

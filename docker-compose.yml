@@ -107,7 +107,6 @@ services:
 
   search_init:
     build: .
-    image: hybrid-search-engine:latest
     depends_on:
       opensearch:
         condition: service_healthy
@@ -122,7 +121,7 @@ services:
   # =====================================
 
   ingestion-worker:
-    image: hybrid-search-engine:latest
+    build: .
     container_name: ingestion-worker
 
     depends_on:
@@ -164,7 +163,7 @@ services:
   # FASTAPI APP INSTANCES
   # =====================================
   app1:
-    image: hybrid-search-engine:latest
+    build: .
     container_name: hybrid-app1
     expose:
       - "8000"

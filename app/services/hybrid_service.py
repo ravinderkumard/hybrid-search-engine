@@ -6,24 +6,15 @@ import time
 from app.core.logger import logger
 
 class HybridSearchService:
-    def __init__(self, bm25_service, vector_service, embedding_service, reranker=None):
+    def __init__(self, bm25_service, vector_service, embedding_service):
         self.bm25_service = bm25_service
         self.vector_service = vector_service
         self.embedding_service = embedding_service
-        self.reranker = reranker
-
-    def _prepare_documents_for_rerank(self,docs):
-        return [
-            f"{doc['title']} {doc['content']}"[:2000]
-            for doc in docs
-        ]
 
     def reciprocal_rank_fusion(self, bm25_results, dense_results, top_k, k=60):
         fused_scores = defaultdict(
             lambda: {
                 "doc_id": None,
-                "title": "",
-                "content": "",
                 "bm25_rank": None,
                 "bm25_score": None,
                 "dense_rank": None,
@@ -34,17 +25,11 @@ class HybridSearchService:
 
         # BM25 contribution
         for result in bm25_results:
-            doc_id = result["doc_id"]
+            doc_id = str(result["doc_id"])
 
             fused_scores[doc_id][
                 "doc_id"
             ] = doc_id
-            fused_scores[doc_id][
-                "title"
-            ] = result["title"]
-            fused_scores[doc_id][
-                "content"
-            ] = result["content"]
 
             fused_scores[doc_id][
                 "bm25_rank"
@@ -65,17 +50,11 @@ class HybridSearchService:
         for result in dense_results:
             if result["dense_similarity"] < settings.MIN_DENSE_SIMILARITY:
                 continue
-            doc_id = result["doc_id"]
+            doc_id = str(result["doc_id"])
 
             fused_scores[doc_id][
                 "doc_id"
             ] = doc_id
-            fused_scores[doc_id][
-                "title"
-            ] = result["title"]
-            fused_scores[doc_id][
-                "content"
-            ] = result["content"]
 
             fused_scores[doc_id][
                 "dense_rank"
@@ -149,9 +128,7 @@ class HybridSearchService:
             if not bm25_results:
                 return [
                     {
-                        "doc_id": item.get(
-                            "doc_id"
-                        ),
+                        "doc_id": str(item.get("doc_id")),
                         "title": item.get(
                             "title"
                         ),
@@ -180,9 +157,7 @@ class HybridSearchService:
             if not vector_results:
                 return [
                     {
-                        "doc_id": item.get(
-                            "doc_id"
-                        ),
+                        "doc_id": str(item.get("doc_id")),
                         "title": item.get(
                             "title"
                         ),
@@ -214,28 +189,4 @@ class HybridSearchService:
                     top_k=top_k,
                 )
 
-            fused_results = fused_results[:settings.RERANK_TOP_K]
-
-            if self.reranker:
-                try:
-                    docs_text = self._prepare_documents_for_rerank(fused_results)
-                    rerank_start = time.perf_counter()
-                    reranked = await asyncio.to_thread(
-                        self.reranker.rerank,query,fused_results,top_k
-                    )
-                    rerank_latency_ms = (
-                        time.perf_counter() - rerank_start
-                    ) * 1000
-                    logger.info({
-                        "stage": "reranker",
-                        "latency_ms": round(rerank_latency_ms, 2),
-                    })
-                    logger.info({
-                        "rerank_docs": len(docs_text),
-                        "avg_doc_size": sum(len(t) for t in docs_text) / len(docs_text),
-                        "total_chars": sum(len(t) for t in docs_text)
-                    })
-                    return reranked[:top_k]
-                except Exception as e:
-                    return fused_results[:top_k]
             return fused_results[:top_k]
