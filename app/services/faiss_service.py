@@ -36,6 +36,24 @@ class FAISSService:
             self._load_index()
         )
 
+    def _prepare_vector(self, embedding):
+        vector = np.array(
+            embedding
+        ).astype("float32")
+
+        if len(vector.shape) == 1:
+            vector = np.expand_dims(
+                vector,
+                axis=0,
+            )
+        elif len(vector.shape) > 2:
+            raise ValueError(
+                f"Invalid embedding shape: {vector.shape}"
+            )
+
+        faiss.normalize_L2(vector)
+        return vector
+
     # =========================================
     # LOAD INDEX
     # =========================================
@@ -135,36 +153,30 @@ class FAISSService:
         if query_embedding is None:
             return []
 
-        query_vector = np.array(
+        query_vector = self._prepare_vector(
             query_embedding
-        ).astype("float32")
-
-        # Ensure shape is exactly (1, dim)
-        if len(query_vector.shape) == 1:
-            query_vector = np.expand_dims(
-                query_vector,
-                axis=0,
-            )
-
-        # If already (1, dim), leave unchanged
-        elif len(query_vector.shape) > 2:
-            raise ValueError(
-                f"Invalid query embedding shape: {query_vector.shape}"
-            )
+        )
 
         # =====================================
         # OVER-FETCH FOR STALE FILTERING
         # =====================================
-        search_k = max(
-            top_k * 3,
-            top_k,
+        search_k = min(
+            max(
+                top_k * 3,
+                top_k,
+            ),
+            self.index.ntotal,
         )
-        faiss.normalize_L2(query_vector)
+
+        if search_k <= 0:
+            return []
+
         distances, indices = await asyncio.to_thread(
                 self.index.search,
                 query_vector,
                 search_k,
             )
+
         logger.info({
             "indices": indices[0].tolist(),
             "distances": distances[0].tolist(),
@@ -186,24 +198,21 @@ class FAISSService:
             if idx < 0:
                 continue
 
-            doc_id = int(idx)
-
-            # Convert L2 distance → similarity proxy
             similarity = float(distance)
+
+            if not np.isfinite(similarity):
+                continue
+
+            if similarity < settings.MIN_DENSE_SIMILARITY:
+                continue
 
             results.append(
                 {
-                    "doc_id": doc_id,
-                    "dense_score": float(
-                        similarity
-                    ),
+                    "doc_id": int(idx),
+                    "dense_score": similarity,
                     "dense_rank": rank,
-                    "dense_similarity": float(
-                        similarity
-                    ),
-                    "dense_distance": float(
-                        distance
-                    ),
+                    "dense_similarity": similarity,
+                    "dense_distance": float(distance),
                 }
             )
 
@@ -270,22 +279,9 @@ class FAISSService:
                 "FAISS index is not initialized."
             )
 
-        vector = np.array(
+        vector = self._prepare_vector(
             embedding
-        ).astype("float32")
-
-        # Shape safety
-        if len(vector.shape) == 1:
-            vector = np.expand_dims(
-                vector,
-                axis=0,
-            )
-
-        elif len(vector.shape) > 2:
-            raise ValueError(
-                f"Invalid embedding shape: "
-                f"{vector.shape}"
-            )
+        )
 
         doc_id_array = np.array(
             [int(doc_id)]
@@ -305,8 +301,6 @@ class FAISSService:
             )
         except Exception:
             removed_count = 0
-
-        faiss.normalize_L2(vector)
 
         self.index.add_with_ids(
             vector,

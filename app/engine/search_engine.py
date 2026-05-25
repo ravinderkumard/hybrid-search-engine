@@ -6,14 +6,17 @@ from app.services.bm25_service import BM25Service
 from app.services.embedding_service import (
     EmbeddingService,
 )
-# from app.services.faiss_service import FAISSService
 from app.core.vector_store import faiss_service
 from app.services.hybrid_service import (
     HybridSearchService,
 )
 from app.services.CohereReranker import CohereReranker
 from app.services.document_metadata_service import (    DocumentMetadataService,)
-from app.services.metrics import (bm25_latency,embedding_latency,faiss_latency,rrf_latency,metadata_latency,total_search_latency)
+from app.services.metrics import (
+    rrf_latency,
+    metadata_latency,
+    total_search_latency,
+)
 from dotenv import load_dotenv
 import os
 from app.core.redis_client import redis_client
@@ -40,9 +43,10 @@ class SearchEngine:
             EmbeddingService(redis_client)
         )
         self.faiss_service = faiss_service
-        self.reranker = CohereReranker(
-            api_key = api_key
-            
+        self.reranker = (
+            CohereReranker(api_key=api_key)
+            if api_key
+            else None
         )
         self.hybrid_service = (
             HybridSearchService(
@@ -83,35 +87,6 @@ class SearchEngine:
 
         with total_search_latency.time():
             # =====================================
-            # SPARSE SEARCH (OpenSearch BM25)
-            # =====================================
-            # with bm25_latency.time():
-            #     bm25_results = await (
-            #         self.bm25_service.search(
-            #             query=query,
-            #             top_k=top_k * 2,
-            #         )
-            #     )
-
-            # # =====================================
-            # # DENSE SEARCH (FAISS)
-            # # =====================================
-            # with embedding_latency.time():
-            #     query_embedding = await (
-            #         self.embedding_service.encode_query(
-            #             query
-            #         )
-            #     )
-
-            # with faiss_latency.time():
-            #     dense_results = await (
-            #         self.faiss_service.search(
-            #             query_embedding=query_embedding,
-            #             top_k=top_k * 2,
-            #         )
-            #     )
-
-            # =====================================
             # HYBRID FUSION (RRF)
             # =====================================
             with rrf_latency.time():
@@ -121,6 +96,24 @@ class SearchEngine:
                         top_k=top_k,
                     )
                 )
+
+            if not hybrid_results:
+                if self.hybrid_service.last_mode == "no_strong_match":
+                    return {
+                        "query": query,
+                        "total_results": 0,
+                        "results": [],
+                        "message": (
+                            self.hybrid_service.last_message
+                            or "No strong match found in the current corpus."
+                        ),
+                    }
+
+                return {
+                    "query": query,
+                    "total_results": 0,
+                    "results": [],
+                }
 
             # =====================================
             # POSTGRESQL GOVERNANCE
@@ -132,7 +125,25 @@ class SearchEngine:
                     )
                 )
 
-            if self.reranker and enriched_results:
+            if not enriched_results:
+                if self.hybrid_service.last_mode == "no_strong_match":
+                    return {
+                        "query": query,
+                        "total_results": 0,
+                        "results": [],
+                        "message": (
+                            self.hybrid_service.last_message
+                            or "No strong match found in the current corpus."
+                        ),
+                    }
+
+                return {
+                    "query": query,
+                    "total_results": 0,
+                    "results": [],
+                }
+
+            if self.reranker:
                 rerank_start = time.perf_counter()
                 try:
                     reranked_results = await asyncio.to_thread(
@@ -158,6 +169,11 @@ class SearchEngine:
                         "stage": "reranker_failed",
                         "error": str(e),
                     })
+            else:
+                logger.info({
+                    "stage": "reranker_skipped",
+                    "reason": "missing_api_key",
+                })
 
             return {
                 "query": query,

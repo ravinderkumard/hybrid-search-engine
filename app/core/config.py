@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
+from typing import ClassVar
 
 class Settings(BaseSettings):
     """
@@ -56,10 +57,16 @@ class Settings(BaseSettings):
     MAX_TOP_K: int = 50
     RETRIEVAL_K: int = 50
     RERANK_TOP_K: int = 10
-    MIN_DENSE_SIMILARITY: float = 0.10
+    MIN_DENSE_SIMILARITY: float = 0.75
+
+    MIN_DENSE_STRONG_SIMILARITY:ClassVar[float] = 0.75
+    MAX_DENSE_DISTANCE: float = 1.0
+    MIN_BM25_SCORE: float = 2.0
 
     FAISS_EF_SEARCH: int = 128
 
+    HYBRID_FALLBACK_MODE: str = "bm25"
+    NO_STRONG_MATCH_THRESHOLD: float = 0.25
     # =========================
     # Pydantic Settings
     # =========================

@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 from app.core.config import settings
 from app.core.opensearch_client import OpenSearchClient
 from app.services.metrics import bm25_latency
+from app.core.logger import logger
 
 class BM25Service:
     """
@@ -89,17 +90,16 @@ class BM25Service:
                         "_source", {}
                     )
 
+                    raw_doc_id = source.get("id")
+
+                    try:
+                        doc_id = int(raw_doc_id)
+                    except (TypeError, ValueError):
+                        continue
+
                     results.append(
                         {
-                            "doc_id": str(
-                                source.get("id")
-                            ),
-                            "title": source.get(
-                                "title", ""
-                            ),
-                            "content": source.get(
-                                "content", ""
-                            ),
+                            "doc_id": doc_id,
                             "bm25_score": float(
                                 hit.get(
                                     "_score", 0.0
@@ -109,11 +109,18 @@ class BM25Service:
                         }
                     )
 
+                logger.info({
+                    "stage": "bm25_search",
+                    "query": query,
+                    "requested_top_k": top_k,
+                    "returned_results": len(results),
+                })
+
                 return results
 
             except Exception as e:
-                print(
-                    f"OpenSearch BM25 search error: {e}"
+                logger.exception(
+                    "OpenSearch BM25 search error"
                 )
                 return []
 

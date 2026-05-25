@@ -27,7 +27,7 @@ class DocumentMetadataService:
     # =====================================
     def get_documents_by_ids(
         self,
-        doc_ids: List[str],
+        doc_ids: List[int],
     ) -> Dict[int, Document]:
         """
         Returns active documents only.
@@ -35,17 +35,10 @@ class DocumentMetadataService:
         if not doc_ids:
             return {}
 
-        normalized_doc_ids = []
-        for doc_id in doc_ids:
-            try:
-                normalized_doc_ids.append(int(doc_id))
-            except (TypeError, ValueError):
-                continue
-
         docs = (
             self.db.query(Document)
             .filter(
-                Document.id.in_(normalized_doc_ids),
+                Document.id.in_(doc_ids),
                 Document.is_active
                 == True,
             )
@@ -67,10 +60,12 @@ class DocumentMetadataService:
         """
         Replaces index metadata with PostgreSQL truth.
         """
-        doc_ids = [
-            result["doc_id"]
-            for result in search_results
-        ]
+        doc_ids = []
+        for result in search_results:
+            try:
+                doc_ids.append(int(result["doc_id"]))
+            except (TypeError, ValueError):
+                continue
 
         metadata_map = (
             self.get_documents_by_ids(
@@ -81,11 +76,7 @@ class DocumentMetadataService:
         enriched = []
 
         for result in search_results:
-            try:
-                lookup_id = int(result["doc_id"])
-            except (TypeError, ValueError):
-                continue
-
+            lookup_id = int(result["doc_id"])
             doc = metadata_map.get(lookup_id)
 
             # Skip deleted/inactive

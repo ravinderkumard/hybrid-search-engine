@@ -65,3 +65,49 @@ results_count_histogram = Histogram(
     "search_results_returned",
     "Number of results returned by search queries"
 )
+
+hybrid_mode_counter = Counter(
+    "hybrid_mode_total",
+    "Number of times each hybrid retrieval mode is used",
+    ["mode"],
+)
+
+dense_confident_counter = Counter(
+    "dense_confident_total",
+    "Number of searches where dense retrieval was confident"
+)
+
+bm25_confident_counter = Counter(
+    "bm25_confident_total",
+    "Number of searches where BM25 retrieval was confident"
+)
+
+dense_only_fallback_counter = Counter(
+    "dense_only_fallback_total",
+    "Number of times dense-only fallback was used"
+)
+
+bm25_only_fallback_counter = Counter(
+    "bm25_only_fallback_total",
+    "Number of times BM25-only fallback was used"
+)
+
+no_strong_match_counter = Counter(
+    "no_strong_match_total",
+    "Number of searches where neither dense nor BM25 was confident"
+)
+
+reranker_success_counter = Counter(
+    "reranker_success_total",
+    "Number of searches successfully reranked by Cohere"
+)
+
+reranker_failed_counter = Counter(
+    "reranker_failed_total",
+    "Number of searches where reranking failed"
+)
+
+reranker_skipped_counter = Counter(
+    "reranker_skipped_total",
+    "Number of searches where reranking was skipped"
+)
