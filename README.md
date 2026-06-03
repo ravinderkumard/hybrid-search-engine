@@ -1,6 +1,6 @@
 # Hybrid Search Engine
 
-A production-oriented hybrid retrieval system combining sparse lexical search, dense vector retrieval, reranking, and metadata governance using an asynchronous distributed backend architecture.
+A hybrid retrieval system combining sparse lexical search, dense vector retrieval, reranking, and metadata governance using an asynchronous distributed backend architecture.
 
 ---
 
