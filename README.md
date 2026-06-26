@@ -1,4 +1,7 @@
 # Hybrid Search Engine
+### This repository contains sub-branches.
+- Main
+- feature/open-search_elastic-search
 
 ## Production-Grade BM25 + Dense Retrieval + RRF Full-Stack Search Platform
 
