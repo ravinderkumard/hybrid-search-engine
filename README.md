@@ -9,7 +9,7 @@
 
 # Overview
 
-Hybrid Search Engine is a recruiter-grade, production-oriented full-stack application designed to solve a fundamental information retrieval problem:
+Hybrid Search Engine is a recruiter-grade, full-stack application designed to solve a fundamental information retrieval problem:
 
 ## Traditional search systems often fail because:
 
