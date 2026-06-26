@@ -141,7 +141,7 @@ Reciprocal Rank Fusion (RRF)
 
 ---
 
-# Phase 3 — Backend Productization
+# Phase 3 — Backend
 
 ## FastAPI Endpoints:
 
@@ -160,7 +160,7 @@ Reciprocal Rank Fusion (RRF)
 
 ---
 
-# Phase 4 — Frontend Productization
+# Phase 4 — Frontend
 
 ## Built:
 
