@@ -280,5 +280,5 @@ This project demonstrates:
 
 # Resume Bullet
 
-Built a production-grade Hybrid Search Engine combining BM25, SentenceTransformers, FAISS, and Reciprocal Rank Fusion with FastAPI backend and modular React frontend, demonstrating end-to-end search architecture from retrieval theory to productized MVP.
+Built a Hybrid Search Engine combining BM25, SentenceTransformers, FAISS, and Reciprocal Rank Fusion with FastAPI backend and modular React frontend, demonstrating end-to-end search architecture from retrieval theory to MVP.
 
