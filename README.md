@@ -3,7 +3,7 @@
 - Main
 - feature/open-search_elastic-search
 
-## Production-Grade BM25 + Dense Retrieval + RRF Full-Stack Search Platform
+## BM25 + Dense Retrieval + RRF Full-Stack Search Platform
 
 ---
 
