@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.agents.retrieval.retrieval_agent import RetrievalAgent
+from app.agents.retrieval.retrieval_schema import RetrievalRequest
 from app.core.config import settings
 from app.core.dependencies import (
     get_search_engine,
@@ -26,6 +28,7 @@ from app.services.metrics import (
     results_count_histogram,
     total_search_latency
     )
+from app.utils.model_loader import ModelLoader
 
 
 # =========================================
@@ -246,3 +249,28 @@ async def search(
             status_code=500,
             detail={"message":"Internal search error","request_id":request_id}
         )
+    
+
+# =========================================
+# SEARCH Agentic
+# =========================================
+@app.post("/agentic-search")
+async def search(
+    request: SearchRequest,
+    http_request: Request,
+    search_engine: SearchEngine = Depends(
+        get_search_engine
+    ),
+):
+    model_loader = ModelLoader(model_provider="openai")
+    model = model_loader.load_llm()
+
+    agent = RetrievalAgent(model)
+
+    decision = agent.decide(
+        RetrievalRequest(
+            query="Explain LoginService API"
+        )
+    )
+
+    print(decision)

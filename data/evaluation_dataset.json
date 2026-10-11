@@ -1,0 +1,407 @@
+[
+  {
+    "query": "diphoton production cross sections",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0001"]
+  },
+  {
+    "query": "how Higgs boson diphoton distributions are modeled",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0001"]
+  },
+  {
+    "query": "diphoton prodction at LHC",
+    "query_type": "typo",
+    "relevant_docs": ["0704.0001"]
+  },
+  {
+    "query": "graph decomposition pebble game",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0002"]
+  },
+  {
+    "query": "algorithm for sparse graph decomposition",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0002"]
+  },
+  {
+    "query": "sparse graph pebbel game",
+    "query_type": "typo",
+    "relevant_docs": ["0704.0002"]
+  },
+  {
+    "query": "earth moon system dark matter model",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0003"]
+  },
+  {
+    "query": "moon orbit evolution explained with dark matter",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0003"]
+  },
+  {
+    "query": "earth moon evoltion theory",
+    "query_type": "typo",
+    "relevant_docs": ["0704.0003"]
+  },
+  {
+    "query": "stirling cycle determinant automata",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0004"]
+  },
+  {
+    "query": "acyclic single source automata counting",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0004"]
+  },
+  {
+    "query": "dyadic lambda alpha norm",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0005"]
+  },
+  {
+    "query": "hardy spaces using dyadic grids",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0005"]
+  },
+  {
+    "query": "bosonic characters cooper pairs",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0006"]
+  },
+  {
+    "query": "fermi gas cooper pair bosonic behavior",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0006"]
+  },
+  {
+    "query": "polymer quantum mechanics continuum limit",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0007"]
+  },
+  {
+    "query": "relation between schrodinger theory and polymer representation",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0007"]
+  },
+  {
+    "query": "polymer quantm mechanics",
+    "query_type": "typo",
+    "relevant_docs": ["0704.0007"]
+  },
+  {
+    "query": "shock and ramp compression numerical solution",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0008"]
+  },
+  {
+    "query": "material response under shock compression",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0008"]
+  },
+  {
+    "query": "serpens yso population observations",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0009"]
+  },
+  {
+    "query": "young stellar objects detected with spitzer",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0009"]
+  },
+  {
+    "query": "partial cubes characterization",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0010"]
+  },
+  {
+    "query": "isometric subgraphs of hypercubes",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0010"]
+  },
+  {
+    "query": "hilbert siegel modular forms",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0011"]
+  },
+  {
+    "query": "hecke eigensystems over quadratic fields",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0011"]
+  },
+  {
+    "query": "fourier coefficients modulo primes",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0012"]
+  },
+  {
+    "query": "modular forms half integral weight modulo p",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0012", "0704.0013"]
+  },
+  {
+    "query": "p adic limit weakly holomorphic modular forms",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0013"]
+  },
+  {
+    "query": "iterated integrals and loop product",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0014"]
+  },
+  {
+    "query": "string topology and differential forms",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0014"]
+  },
+  {
+    "query": "pure spinor superstring amplitudes",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0015"]
+  },
+  {
+    "query": "loop amplitudes in pure spinor formalism",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0015"]
+  },
+  {
+    "query": "doubly charmed baryon lifetime",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0016"]
+  },
+  {
+    "query": "lifetime prediction for xi cc baryons",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0016"]
+  },
+  {
+    "query": "spectroscopic observations ex hydrae",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0017"]
+  },
+  {
+    "query": "accretion curtain emission in EX Hya",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0017"]
+  },
+  {
+    "query": "generalized callias index theorem",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0018"]
+  },
+  {
+    "query": "computing callias index using exponential regulator",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0018"]
+  },
+  {
+    "query": "contact process extinction probability",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0019"]
+  },
+  {
+    "query": "grobner basis approximation for contact process",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0019"]
+  },
+  {
+    "query": "hadronic form factor D0 decay",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0020"]
+  },
+  {
+    "query": "measurement of D0 to K e nu decay form factor",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0020"]
+  },
+  {
+    "query": "molecular synchronization waves enzymes",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0021"]
+  },
+  {
+    "query": "wave patterns in allosteric enzyme arrays",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0021"]
+  },
+  {
+    "query": "stochastic lie group integrators",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0022"]
+  },
+  {
+    "query": "stochastic differential equations on manifolds",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0022"]
+  },
+  {
+    "query": "alma solar chromosphere probe",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0023"]
+  },
+  {
+    "query": "millimeter wavelength observations of solar chromosphere",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0023"]
+  },
+  {
+    "query": "quasi solitons ferromagnetic film",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0024"]
+  },
+  {
+    "query": "spin wave packets in confined film media",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0024"]
+  },
+  {
+    "query": "diagrammatic monte carlo polarons",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0025"]
+  },
+  {
+    "query": "electron phonon coupled systems exact monte carlo",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0025"]
+  },
+  {
+    "query": "meta fractals box kites",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0026"]
+  },
+  {
+    "query": "cayley dickson zero divisors and fractals",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0026"]
+  },
+  {
+    "query": "graphene magnetophonon resonance",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0027"]
+  },
+  {
+    "query": "phonon resonance with landau levels in graphene",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0027"]
+  },
+  {
+    "query": "pfaffians hafnians inequalities",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0028"]
+  },
+  {
+    "query": "linear polarization constant problem",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0028"]
+  },
+  {
+    "query": "flavor symmetry breaking chiral quark model",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0029"]
+  },
+  {
+    "query": "goldstone boson emission in nucleons",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0029"]
+  },
+  {
+    "query": "electron phonon interactions correlation effects",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0030"]
+  },
+  {
+    "query": "mott behavior caused by phonon tuning",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0030"]
+  },
+  {
+    "query": "lhc forward proton crystal channeling",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0031"]
+  },
+  {
+    "query": "bent crystal steering of diffractive protons",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0031"]
+  },
+  {
+    "query": "non standard neutrino interactions supernova",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0032"]
+  },
+  {
+    "query": "detecting NSI using supernova neutrinos",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0032"]
+  },
+  {
+    "query": "discrete dipole approximation convergence",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0033", "0704.0035", "0704.0038"]
+  },
+  {
+    "query": "light scattering simulation using DDA",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0037", "0704.0038"]
+  },
+  {
+    "query": "adaptive mutants quantum measurement",
+    "query_type": "ambiguous",
+    "relevant_docs": ["0704.0034"]
+  },
+  {
+    "query": "steady states in phosphorylation cycle",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0036"]
+  },
+  {
+    "query": "multisite phosphorylation bistability",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0036"]
+  },
+  {
+    "query": "quantum isometry groups",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0041"]
+  },
+  {
+    "query": "compact quantum groups acting on manifolds",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0041"]
+  },
+  {
+    "query": "fuzzy sets and quantum semantics",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0042"]
+  },
+  {
+    "query": "general systems theory using quantum semantics",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0042"]
+  },
+  {
+    "query": "entropy limiters lattice boltzmann",
+    "query_type": "keyword",
+    "relevant_docs": ["0704.0043"]
+  },
+  {
+    "query": "shock stabilization in lattice boltzmann methods",
+    "query_type": "semantic",
+    "relevant_docs": ["0704.0043"]
+  },
+  {
+    "query": "find papers about quantum mechanics and modular forms",
+    "query_type": "multi-intent",
+    "relevant_docs": ["0704.0007", "0704.0012", "0704.0013"]
+  },
+  {
+    "query": "research on graphene resonance and phonon interactions",
+    "query_type": "multi-intent",
+    "relevant_docs": ["0704.0027", "0704.0030"]
+  },
+  {
+    "query": "papers discussing numerical simulations and light scattering methods",
+    "query_type": "long-context",
+    "relevant_docs": ["0704.0033", "0704.0037", "0704.0038"]
+  }
+]

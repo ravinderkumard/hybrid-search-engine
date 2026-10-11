@@ -33,3 +33,6 @@ cohere
 minio
 
 redis[hiredis]
+
+langchain_openai
+langgraph
